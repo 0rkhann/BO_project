@@ -85,23 +85,14 @@ def aggregate_runs(runs, low_p=25, high_p=75):
 def collect_data_by_dataset():
     """Collect BO and random search data organized by dataset."""
     data_by_dataset = {}
+    random_trajectories = []  # Store canonical random search baseline
 
     # Structure: results/{dataset}/{method}_{kernel}_{acquisition}/seed{N}/...
     # or results/{dataset}_random_search/seed{N}/random_search_history.csv
 
-    for dataset_dir in sorted(glob.glob(os.path.join(RESULTS_ROOT, "*"))):
-        dataset_label = os.path.basename(dataset_dir)
-
-        # Handle random search
-        if "random_search" in dataset_label:
-            dataset = dataset_label.replace("_random_search", "")
-            method = "random"
-
-            if dataset not in data_by_dataset:
-                data_by_dataset[dataset] = {}
-            if method not in data_by_dataset[dataset]:
-                data_by_dataset[dataset][method] = []
-
+    # First pass: collect random search data (use first found as canonical)
+    for dataset_dir in sorted(glob.glob(os.path.join(RESULTS_ROOT, "*_random_search"))):
+        if not random_trajectories:  # Only load first random search found
             for seed_dir in sorted(glob.glob(os.path.join(dataset_dir, "seed*"))):
                 random_csv = os.path.join(seed_dir, "random_search_history.csv")
                 if os.path.isfile(random_csv):
@@ -110,7 +101,15 @@ def collect_data_by_dataset():
                         best_trajectory = np.minimum.accumulate(
                             df["best_random"].values
                         )
-                        data_by_dataset[dataset][method].append(best_trajectory)
+                        random_trajectories.append(best_trajectory)
+
+    # Second pass: collect BO data for all datasets
+    for dataset_dir in sorted(glob.glob(os.path.join(RESULTS_ROOT, "*"))):
+        dataset_label = os.path.basename(dataset_dir)
+
+        # Skip random search directories in this pass
+        if "random_search" in dataset_label:
+            continue
         else:
             # Handle BO methods
             dataset = dataset_label
@@ -151,6 +150,11 @@ def collect_data_by_dataset():
                                         best_trajectory
                                     )
                                     break
+
+    # Apply canonical random search baseline to all datasets
+    if random_trajectories:
+        for dataset in data_by_dataset.keys():
+            data_by_dataset[dataset]["random"] = random_trajectories
 
     return data_by_dataset
 
@@ -337,7 +341,7 @@ def plot_convergence_analysis(convergence_df, output_dir):
 
 def plot_best_across_datasets(data_by_dataset, global_bests, output_path):
     """
-    Plot comparison of best performing method from each dataset.
+    Plot comparison of best performing method from each dataset + random search.
 
     Args:
         data_by_dataset: All collected data organized by dataset
@@ -346,8 +350,9 @@ def plot_best_across_datasets(data_by_dataset, global_bests, output_path):
     """
     fig, ax = plt.subplots(figsize=(12, 8))
 
-    # Find best method for each dataset
+    # Find best BO method for each dataset (excluding random)
     best_methods = {}
+    random_methods = {}
 
     for dataset, methods_data in data_by_dataset.items():
         best_final_value = float("inf")
@@ -355,10 +360,15 @@ def plot_best_across_datasets(data_by_dataset, global_bests, output_path):
         best_trajectories = None
 
         for method, trajectories in methods_data.items():
-            if not trajectories or method == "random":
+            if not trajectories:
                 continue
 
-            # Calculate median final value
+            # Store random search separately
+            if method == "random":
+                random_methods[dataset] = trajectories
+                continue
+
+            # Calculate median final value for BO methods
             final_values = [traj[-1] for traj in trajectories]
             median_final = np.median(final_values)
 
@@ -374,7 +384,7 @@ def plot_best_across_datasets(data_by_dataset, global_bests, output_path):
                 "final_value": best_final_value,
             }
 
-    # Plot the best methods
+    # Plot the best BO methods
     for dataset, info in sorted(best_methods.items()):
         method = info["method"]
         trajectories = info["trajectories"]
@@ -412,6 +422,33 @@ def plot_best_across_datasets(data_by_dataset, global_bests, output_path):
 
         # Plot confidence interval
         ax.fill_between(iterations, low, high, color=color, alpha=0.25)
+
+    # Plot random search once (same for all datasets)
+    if random_methods:
+        # Get random search from any dataset (they're all the same)
+        trajectories = list(random_methods.values())[0]
+        med, low, high = aggregate_runs(trajectories)
+        
+        if med is not None:
+            iterations = np.arange(len(med))
+            color = METHOD_COLORS.get("random", "#95a5a6")
+            
+            final_value = np.median([traj[-1] for traj in trajectories])
+            label = f"RANDOM (best: {final_value:.2f})"
+
+            # Plot median line (dashed for random)
+            ax.plot(
+                iterations,
+                med,
+                label=label,
+                color=color,
+                linestyle="--",
+                linewidth=2.0,
+                alpha=0.7,
+            )
+
+            # Plot confidence interval
+            ax.fill_between(iterations, low, high, color=color, alpha=0.15)
 
     # Add global minimum line (all DFT datasets use same cache, so same global min)
     if global_bests:
@@ -485,7 +522,7 @@ def main():
     print("\n🏆 Generating best methods comparison across datasets...")
     best_output_path = os.path.join(OUTPUT_DIR, "best_methods_comparison.png")
     plot_best_across_datasets(data_by_dataset, global_bests, best_output_path)
-    
+
     # Print convergence summary
     print("\n⚡ Calculating convergence statistics...")
     convergence_df = calculate_convergence_metrics(data_by_dataset, global_bests)

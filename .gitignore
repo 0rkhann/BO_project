@@ -131,8 +131,6 @@ dmypy.json
 .pyre/
 
 # Project-specific
-results/
-plots/
 models/
 *.pkl
 *.joblib
