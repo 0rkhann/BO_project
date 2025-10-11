@@ -428,11 +428,11 @@ def plot_best_across_datasets(data_by_dataset, global_bests, output_path):
         # Get random search from any dataset (they're all the same)
         trajectories = list(random_methods.values())[0]
         med, low, high = aggregate_runs(trajectories)
-        
+
         if med is not None:
             iterations = np.arange(len(med))
             color = METHOD_COLORS.get("random", "#95a5a6")
-            
+
             final_value = np.median([traj[-1] for traj in trajectories])
             label = f"RANDOM (best: {final_value:.2f})"
 
