@@ -9,12 +9,11 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 setup(
     name="bo-project",
     version="0.1.0",
-    author="Your Name",
-    author_email="your.email@example.com",
+    author="Orkhan Abdullayev",
     description="Bayesian Optimization for Molecular Property Optimization",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/bo_project",
+    url="https://github.com/0rkhann/BO_project",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
