@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""Figures for the README: convergence, iterations to top 1%, regret AUC + effect sizes,
+the descriptor-space outlier plot (plots/) and the ML parity plot (ml_plots/).
+
+Every number comes from the CSVs in results/ and ml_results/ and from analysis/*.csv
+(written by scripts/analyze_results.py); figure 4 also reads data/dft_descriptors.csv
+and data/dft_G.json. Each figure is written as SVG (README) and PDF (papers, slides).
+
+Usage: python scripts/analyze_results.py && python plotting/make_figures.py
+"""
+import json
+import sys
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from matplotlib.lines import Line2D
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import analyze_results as ar  # noqa: E402
+
+# Okabe-Ito, one fixed colour per method in every figure; the two controls are dashed.
+COLOR = {"fabo": "#E69F00", "pca": "#56B4E9", "pls": "#009E73", "opls": "#D55E00",
+         "vanilla": "#CC79A7", "random": "#9AA0A6", "outlier": "#0072B2"}
+STYLE = {"random": "--", "outlier": "-."}
+LABEL = {"fabo": "FABO", "pca": "PCA", "pls": "PLS", "opls": "OPLS", "vanilla": "Vanilla GP",
+         "random": "Random", "outlier": "Outlier (no model)"}
+INK = "#7d8590"  # mid-tone text and axes: readable on GitHub light and dark backgrounds
+GRID = "#7d859040"
+
+plt.rcParams.update({
+    "font.family": "DejaVu Sans", "font.size": 10, "text.color": INK, "axes.labelcolor": INK,
+    "axes.edgecolor": INK, "xtick.color": INK, "ytick.color": INK, "axes.titlecolor": INK,
+    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True, "grid.color": GRID,
+    "grid.linewidth": 0.6, "axes.axisbelow": True, "legend.frameon": False,
+    "figure.facecolor": "none", "axes.facecolor": "none", "savefig.transparent": True,
+})
+
+PLOTS, ML_PLOTS = ROOT / "plots", ROOT / "ml_plots"
+REPS = ar.REPS
+
+
+def save(fig, out_dir, name):
+    out_dir.mkdir(exist_ok=True)
+    for ext in ("svg", "pdf"):
+        fig.savefig(out_dir / f"{name}.{ext}", bbox_inches="tight")
+    plt.close(fig)
+    print(f"wrote {out_dir.name}/{name}.svg and .pdf")
+
+
+def method_legend(fig, y=1.02, ncol=7):
+    handles = [Line2D([], [], color=COLOR[m], lw=2.2, ls=STYLE.get(m, "-"), label=LABEL[m]) for m in ar.METHODS]
+    fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, y), ncol=ncol, columnspacing=1.4,
+               handlelength=2.6)
+
+
+def running_best(rep, method, seed):
+    path, col = ar.history_path(rep, method, seed)
+    return np.minimum.accumulate(pd.read_csv(path)[col].to_numpy())
+
+
+# ---- Figure 1: convergence ----------------------------------------------------------------------
+def fig_convergence(runs):
+    fig, axes = plt.subplots(1, 3, figsize=(13, 4.2), sharey=True)
+    x = np.arange(1, ar.N_ITER + 1)
+    for ax, (rep, label) in zip(axes, REPS.items()):
+        for m in ar.METHODS:
+            curves = np.stack([running_best(rep, m, s) for s in ar.SEEDS])
+            lo, med, hi = np.percentile(curves, [25, 50, 75], axis=0)
+            ax.fill_between(x, lo, hi, color=COLOR[m], alpha=0.13, lw=0)
+            ax.plot(x, med, color=COLOR[m], ls=STYLE.get(m, "-"), lw=2.0 if m not in ("random", "outlier") else 1.8)
+        opt = runs[runs.rep == rep].pool_opt.median()
+        ax.axhline(opt, color=INK, lw=0.9, ls=":")
+        ax.text(2, opt - 0.8, f"median pool optimum {opt:.1f}", ha="left", va="top", fontsize=8)
+        ax.set_ylim(-46, None)
+        ax.set_title(label, loc="left", fontweight="bold")
+        ax.set_xlabel("BO iteration")
+        ax.set_xlim(1, ar.N_ITER)
+    axes[0].set_ylabel("Best energy found (lower is better)")
+    method_legend(fig)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    save(fig, PLOTS, "fig1_convergence")
+
+
+# ---- Figure 2: iterations to top 1% --------------------------------------------------------------
+def fig_top1(runs, tests):
+    t = tests[(tests.metric == "it_top1") & (tests.ref == "outlier")].set_index(["rep", "method"])
+    rng = np.random.default_rng(0)
+    fig, axes = plt.subplots(1, 3, figsize=(13, 4.2), sharey=True)
+    for ax, (rep, label) in zip(axes, REPS.items()):
+        for i, m in enumerate(ar.METHODS):
+            v = runs[(runs.rep == rep) & (runs.method == m)].it_top1.to_numpy()
+            ax.scatter(i + rng.uniform(-0.2, 0.2, len(v)), v, s=14, color=COLOR[m], alpha=0.75, lw=0, zorder=3)
+            q1, med, q3 = np.percentile(v, [25, 50, 75])
+            ax.vlines(i, q1, q3, color=COLOR[m], lw=5, alpha=0.35, zorder=2)
+            ax.hlines(med, i - 0.3, i + 0.3, color=COLOR[m], lw=2.6, zorder=4)
+            if (rep, m) in t.index and t.loc[(rep, m)].p_holm < 0.05:
+                faster = t.loc[(rep, m)].rank_biserial < 0
+                ax.text(i, 108, "*" if faster else "†", ha="center", va="center", fontsize=13, color=INK)
+        ax.axhline(ar.N_ITER, color=INK, lw=1.0, ls=":")
+        ax.text(len(ar.METHODS) - 0.5, ar.N_ITER + 1, "not reached", ha="right", va="bottom", fontsize=8)
+        ax.set_xticks(range(len(ar.METHODS)))
+        ax.set_xticklabels([LABEL[m].replace(" (no model)", "") for m in ar.METHODS], rotation=45, ha="right")
+        ax.set_title(label, loc="left", fontweight="bold")
+        ax.set_ylim(-3, 114)
+        ax.grid(axis="x", visible=False)
+    axes[0].set_ylabel("Iterations to reach the top 1% of the pool\n(lower is faster)")
+    fig.text(0.5, -0.04, "Dots: seeds (20). Bar: IQR. Tick: median.   * significantly faster than the outlier "
+             "heuristic, † significantly slower (paired Wilcoxon, Holm p < 0.05)", ha="center", fontsize=8.5)
+    fig.tight_layout()
+    save(fig, PLOTS, "fig2_iterations_to_top1")
+
+
+# ---- Figure 3: regret AUC + effect sizes ---------------------------------------------------------
+def fig_regret(runs, tests):
+    fig = plt.figure(figsize=(14, 4.4))
+    gs = fig.add_gridspec(1, 5, width_ratios=[1, 1, 1, 0.22, 1.55], wspace=0.12)
+    ys = np.arange(len(ar.METHODS))[::-1]
+    first = None
+    for k, (rep, label) in enumerate(REPS.items()):
+        ax = fig.add_subplot(gs[k], sharey=first)
+        first = first or ax
+        for y, m in zip(ys, ar.METHODS):
+            v = runs[(runs.rep == rep) & (runs.method == m)].regret_auc.to_numpy()
+            q1, med, q3 = np.percentile(v, [25, 50, 75])
+            ax.hlines(y, q1, q3, color=COLOR[m], lw=3, alpha=0.5)
+            ax.plot(med, y, "o", color=COLOR[m], ms=8)
+        ax.set_xlim(0, 1.02)
+        ax.set_ylim(-0.5, len(ar.METHODS) - 0.5)
+        ax.set_title(label, loc="left", fontweight="bold")
+        ax.set_xlabel("Regret AUC (median, IQR)")
+        ax.grid(axis="y", visible=False)
+        if k == 0:
+            ax.set_yticks(ys)
+            ax.set_yticklabels([LABEL[m].replace(" (no model)", "") for m in ar.METHODS])
+        else:
+            plt.setp(ax.get_yticklabels(), visible=False)
+    ax = fig.add_subplot(gs[4])  # same y limits as the dot plots, so each cell lines up with its method
+    cols = [(rep, ref) for ref in ("outlier", "random") for rep in REPS]
+    t = tests[tests.metric == "regret_auc"].set_index(["rep", "ref", "method"])
+    cmap = plt.get_cmap("PuOr")  # negative r (method better) -> orange, positive -> purple
+    for j, (rep, ref) in enumerate(cols):
+        for y, m in zip(ys[:len(ar.BO)], ar.BO):
+            r = t.loc[(rep, ref, m)]
+            ax.add_patch(plt.Rectangle((j - 0.5, y - 0.5), 1, 1, color=cmap(0.5 + 0.35 * r.rank_biserial), lw=0))
+            sig = r.p_holm < 0.05
+            ax.text(j, y, f"{r.rank_biserial:+.2f}" + ("*" if sig else ""), ha="center", va="center", fontsize=8.5,
+                    fontweight="bold" if sig else "normal", color="black")
+    ax.set_xlim(-0.5, len(cols) - 0.5)
+    ax.set_xticks(range(len(cols)))
+    ax.set_xticklabels(["Desc.", "ChemB.", "Mordred"] * 2, fontsize=8.5)
+    ax.set_ylim(-0.5, len(ar.METHODS) - 0.5)
+    ax.set_yticks(ys[:len(ar.BO)])
+    ax.set_yticklabels([LABEL[m] for m in ar.BO])
+    ax.tick_params(axis="y", length=0)
+    ax.grid(False)
+    for s in ax.spines.values():
+        s.set_visible(False)
+    ax.text(1, ys[0] + 0.62, "vs outlier", ha="center", fontweight="bold")
+    ax.text(4, ys[0] + 0.62, "vs random", ha="center", fontweight="bold")
+    ax.set_xlabel("Rank-biserial r (negative = better)\n* Holm p < 0.05", fontsize=8.5)
+    save(fig, PLOTS, "fig3_regret_auc")
+
+
+# ---- Figure 4: descriptor space ------------------------------------------------------------------
+def fig_descriptor_space():
+    desc = pd.read_csv(ROOT / "data" / "dft_descriptors.csv")
+    X = desc.drop(columns="SMILES").to_numpy(dtype=float)
+    sd = np.where(X.std(0) > 0, X.std(0), 1.0)
+    z = np.abs((X - X.mean(0)) / sd)
+    score = z.max(1)
+    energy = {d["SMILES"]: d["energy"] for d in json.loads((ROOT / "data" / "dft_G.json").read_text())}
+    e = desc["SMILES"].map(energy).to_numpy()
+    cols = desc.columns[1:]
+    top = np.argsort(e)[:10]
+    best = top[0]
+    hi = COLOR["opls"]
+
+    fig, (a, b) = plt.subplots(1, 2, figsize=(12, 4.4))
+    a.hist(score, bins=70, color=INK, alpha=0.45, lw=0)
+    a.set_yscale("log")
+    for i in top:
+        a.axvline(score[i], color=hi, lw=1.0, alpha=0.8)
+    a.legend(handles=[Line2D([], [], color=hi, lw=1.5, label="10 lowest-energy molecules")], loc="upper right")
+    a.set_xlabel("Outlier score: max |z| over the 29 descriptors")
+    a.set_ylabel("Molecules (log scale)")
+    a.set_title("Outlier score distribution", loc="left", fontweight="bold")
+
+    b.scatter(score, e, s=7, color=INK, alpha=0.35, lw=0)
+    b.scatter(score[top], e[top], s=18, color=hi, lw=0)
+    b.scatter(score[best], e[best], s=130, facecolor="none", edgecolor=hi, lw=2)
+    b.annotate(f"optimum {e[best]:.2f}\n{score[best]:.1f}σ on '{cols[z[best].argmax()]}'",
+               (score[best], e[best]), xytext=(14, 8), textcoords="offset points", fontsize=8.5, color=INK)
+    b.set_xlabel("Outlier score: max |z|")
+    b.set_ylabel("DFT binding free energy")
+    b.set_title("Energy vs outlier score", loc="left", fontweight="bold")
+    fig.tight_layout()
+    save(fig, PLOTS, "fig4_descriptor_outliers")
+
+
+# ---- Parity plot (limitations) -------------------------------------------------------------------
+def fig_parity():
+    reps = [("dft", "DFT descriptors"), ("chemberta2", "ChemBERTa-2"), ("mordred", "Mordred")]
+    models = [("RandomForest", "Random Forest", "#5B6B7F"), ("XGBoost", "XGBoost", "#B59F85")]
+    fig, axes = plt.subplots(2, 3, figsize=(11, 6.6), sharex=True, sharey=True)
+    for i, (model, mlabel, col) in enumerate(models):
+        for j, (ds, rlabel) in enumerate(reps):
+            ax = axes[i, j]
+            df = pd.read_csv(ROOT / "ml_results" / ds / f"{model.lower()}_predictions.csv")
+            y, p = df["True_Energy"].to_numpy(), df[f"{model}_Predicted_Energy"].to_numpy()
+            r2 = 1 - ((y - p) ** 2).sum() / ((y - y.mean()) ** 2).sum()
+            rmse = np.sqrt(np.mean((y - p) ** 2))
+            ax.scatter(y, p, s=6, color=col, alpha=0.35, lw=0)
+            lim = [min(y.min(), p.min()) - 1, max(y.max(), p.max()) + 1]
+            ax.plot(lim, lim, color=INK, lw=1, ls="--")
+            ax.set_xlim(lim)
+            ax.set_ylim(lim)
+            ax.text(0.04, 0.95, f"R² = {r2:.3f}\nRMSE = {rmse:.2f}", transform=ax.transAxes, va="top", fontsize=9)
+            if i == 0:
+                ax.set_title(rlabel, loc="left", fontweight="bold")
+            if j == 0:
+                ax.set_ylabel(f"{mlabel}\npredicted energy")
+            if i == 1:
+                ax.set_xlabel("True energy (hold-out, n = 1,370)")
+    fig.tight_layout()
+    save(fig, ML_PLOTS, "ml_parity")
+
+
+def main():
+    runs = pd.read_csv(ROOT / "analysis" / "per_run_metrics.csv")
+    tests = pd.read_csv(ROOT / "analysis" / "paired_tests.csv")
+    fig_convergence(runs)
+    fig_top1(runs, tests)
+    fig_regret(runs, tests)
+    fig_descriptor_space()
+    fig_parity()
+
+
+if __name__ == "__main__":
+    main()
