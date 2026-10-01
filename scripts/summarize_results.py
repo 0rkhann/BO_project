@@ -4,7 +4,7 @@
 Reads only files that are already in the repository:
   results/**/bo_iteration_history.csv
   results/*_random_search/seed*/random_search_history.csv
-  ml_plots/ml_model_summary.csv
+  ml_results/*/*_predictions.csv  (hold-out RMSE / R², True_Energy vs prediction)
 
 Usage: python scripts/summarize_results.py
 """
@@ -12,6 +12,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+from recompute_holdout_metrics import collect as holdout_metrics_table
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"
@@ -82,11 +84,12 @@ def main():
     for ds, g in t.groupby("dataset", sort=False):
         print(f"{ds}: pool optimum {g.pool_min.iloc[0]:.4f}, iterations per run {sorted(set(g.n_iter))}")
     print()
-    ml = pd.read_csv(ROOT / "ml_plots" / "ml_model_summary.csv")
-    print("| Representation | Model | Test RMSE | Test R² |")
+    ml = holdout_metrics_table()
+    print("| Representation | Model | Hold-out RMSE | Hold-out R² |")
     print("|---|---|---|---|")
     for _, r in ml.iterrows():
-        print(f"| {r.Dataset} | {r.Model} | {r.Test_RMSE} | {r['Test_R²']} |")
+        print(f"| {r.Representation} | {r.Model} | {r.Test_RMSE:.2f} | {r.Test_R2:.3f} |")
+    print(f"\nHold-out set size per model: {sorted(set(ml.n_test))}")
 
 
 if __name__ == "__main__":

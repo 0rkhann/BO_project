@@ -15,11 +15,12 @@ from pathlib import Path
 from scipy import stats
 
 # ——— CONFIG ———
-RESULTS_ROOT = "/home/orkhan/Desktop/bo_project/results"
-OUTPUT_DIR = "/home/orkhan/Desktop/bo_project/plots/comprehensive_comparison"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+RESULTS_ROOT = str(REPO_ROOT / "results")
+OUTPUT_DIR = str(REPO_ROOT / "plots" / "comprehensive_comparison")
 CACHE_FILES = {
-    "dft": "/home/orkhan/Desktop/bo_project/data/dft_G.json",
-    "xtb": "/home/orkhan/Desktop/bo_project/data/xtb_G.json",
+    "dft": str(REPO_ROOT / "data" / "dft_G.json"),
+    "xtb": str(REPO_ROOT / "data" / "xtb_G.json"),
 }
 
 # Color scheme for methods

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import glob
+from pathlib import Path
 import json
 import numpy as np
 import pandas as pd
@@ -8,9 +9,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # ——— CONFIG ———
-DESKTOP = os.path.expanduser("~/Desktop")
-RESULTS_ROOT = os.path.expanduser("/home/orkhan/Desktop/bo_project/results")
-ENERGY_CACHE = os.path.expanduser("/home/orkhan/Desktop/bo_project/data/dft_G.json")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+OUTPUT_DIR = str(REPO_ROOT / "plots")  # figures used to be saved to ~/Desktop
+RESULTS_ROOT = str(REPO_ROOT / "results")
+ENERGY_CACHE = str(REPO_ROOT / "data" / "dft_G.json")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 INCLUDE_BASELINES = True
 
 
@@ -37,7 +40,7 @@ def plot_curve(curves, ylabel, title, fname):
     plt.legend(loc="upper left", bbox_to_anchor=(1, 1))
     plt.tight_layout()
     plt.subplots_adjust(right=0.75)
-    plt.savefig(os.path.join(DESKTOP, fname), bbox_inches="tight")
+    plt.savefig(os.path.join(OUTPUT_DIR, fname), bbox_inches="tight")
     plt.close()
 
 
@@ -180,7 +183,7 @@ for lbl, (med, low, high) in bestbo_curves.items():
     ax1.legend(loc="upper right")
 
     plt.tight_layout()
-    plt.savefig(os.path.join(DESKTOP, f"{lbl}_dist_vs_traj.png"), bbox_inches="tight")
+    plt.savefig(os.path.join(OUTPUT_DIR, f"{lbl}_dist_vs_traj.png"), bbox_inches="tight")
     plt.close()
 
 # ——— BASELINE COMPARISON PLOTS ———
@@ -237,7 +240,7 @@ if INCLUDE_BASELINES and (bestbo_runs or random_runs):
         plt.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
         plt.tight_layout()
         plt.savefig(
-            os.path.join(DESKTOP, "BO_vs_Random_comparison.png"),
+            os.path.join(OUTPUT_DIR, "BO_vs_Random_comparison.png"),
             dpi=300,
             bbox_inches="tight",
         )
@@ -262,7 +265,7 @@ if INCLUDE_BASELINES and (bestbo_runs or random_runs):
         plt.legend(title="Type")
         plt.tight_layout()
         plt.savefig(
-            os.path.join(DESKTOP, "Final_values_violin.png"),
+            os.path.join(OUTPUT_DIR, "Final_values_violin.png"),
             dpi=300,
             bbox_inches="tight",
         )
@@ -279,7 +282,7 @@ if INCLUDE_BASELINES and (bestbo_runs or random_runs):
         plt.legend(title="Type")
         plt.tight_layout()
         plt.savefig(
-            os.path.join(DESKTOP, "Final_values_boxplot.png"),
+            os.path.join(OUTPUT_DIR, "Final_values_boxplot.png"),
             dpi=300,
             bbox_inches="tight",
         )
