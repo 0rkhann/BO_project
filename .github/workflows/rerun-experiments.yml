@@ -145,8 +145,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      # Base the results commit on the latest main, not the dispatch commit: if a workflow
+      # file changed on main during the run, GITHUB_TOKEN may not push a branch whose
+      # workflow files differ from main.
       - uses: actions/checkout@v6
         with:
+          ref: main
           fetch-depth: 1
 
       - uses: actions/download-artifact@v4
