@@ -47,7 +47,9 @@ jobs:
           # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
           # DFT and full ML runs need the cluster; the runner only installs deps and runs light checks.
-          # Skills in .claude/skills load automatically; MCP servers are listed in .github/claude-mcp.json.
+          # Skills in .claude/skills load automatically.
+          # The MCP config must be inline JSON: the action merges inline configs with its own
+          # GitHub servers but drops a file path when it adds its own config.
           claude_args: |
-            --mcp-config .github/claude-mcp.json
+            --mcp-config '{"mcpServers":{"context7":{"type":"http","url":"https://mcp.context7.com/mcp"},"exa":{"type":"http","url":"https://mcp.exa.ai/mcp?tools=web_search_exa,web_fetch_exa"}}}'
             --allowedTools "Skill,mcp__context7,mcp__exa,Bash(pip install:*),Bash(python:*),Bash(pytest:*),Bash(flake8:*),Bash(black:*)"
