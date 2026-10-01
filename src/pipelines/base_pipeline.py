@@ -28,7 +28,7 @@ import psutil
 
 # Fix relative imports to absolute imports
 from src.acquisition import make_acquisition
-from src.data_io import append_to_cache, load_descriptors, load_or_init_cache, pool_min
+from src.data_io import append_to_cache, load_descriptors, load_or_init_cache, pool_min, prune_columns
 from src.feature_selection.base import FeatureSelector
 from src.gp_model import build_gp, fit_gp, check_gp_stability
 from src.utils import logger, seed_everything
@@ -82,6 +82,17 @@ class BOPipeline:
         df = load_descriptors(Path(input_csv))
         smiles_all = df["SMILES"].tolist()
         X_full_df = df.drop(columns="SMILES")
+
+        # optional unsupervised column pruning on the whole X table (no targets)
+        prune_threshold = self.cfg.get("data", {}).get("prune_correlated")
+        kept_columns = None
+        if prune_threshold is not None:
+            kept_columns = prune_columns(X_full_df, prune_threshold)
+            self.logger.info(
+                f"pruned {X_full_df.shape[1]} -> {len(kept_columns)} columns "
+                f"(threshold {prune_threshold})"
+            )
+            X_full_df = X_full_df[kept_columns]
 
         # 2) carve off test set
         X_tmp, X_test_df, smi_tmp, smi_test = train_test_split(
@@ -460,4 +471,6 @@ class BOPipeline:
         out_dir.mkdir(parents=True, exist_ok=True)
 
         pd.DataFrame(records).to_csv(out_dir / "bo_iteration_history.csv", index=False)
+        if kept_columns is not None:
+            (out_dir / "pruned_columns.txt").write_text("\n".join(kept_columns) + "\n")
         self.logger.info(f"Finished BO ✅  (results in {out_dir})")

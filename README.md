@@ -163,6 +163,8 @@ python -m src.cli --mode fabo \
 
 `--mode` is one of `vanilla`, `fabo`, `pca`, `pls`, `opls`, `random`, `outlier`. The package also installs a `bo-optimize` command via `setup.py`.
 
+`--prune-correlated THRESHOLD` (default off) drops constant columns, then greedily drops columns so that no kept pair has |Pearson r| > THRESHOLD (columns visited in original order). It is computed on the whole X table before scaling, with no targets, and logs `pruned N -> M columns`; the kept names go to `pruned_columns.txt` next to `bo_iteration_history.csv`. It exists to let the vanilla GP fit on `dft_mordred` (1,469 features), e.g. `--prune-correlated 0.95`. The model-free baselines (`random`, `outlier`) ignore it.
+
 ### One run (dataset, method, seed)
 
 This is the command the matrix workflow calls. Set `DATASET` (`dft_descriptors`, `dft_chemberta2` or `dft_mordred`), `METHOD` (`vanilla`, `fabo`, `pca`, `pls`, `opls`, `random`, `outlier`) and `SEED`:
