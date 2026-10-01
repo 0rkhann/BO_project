@@ -52,7 +52,7 @@ Representations (files in `data/`, feature CSVs stored with Git LFS):
 | ChemBERTa-2 embeddings | `dft_chemberta2.csv` | 384 |
 | Mordred descriptors | `dft_mordred.csv` | 1,469 |
 
-Targets are xTB binding free energies, computed with an in-house workflow in the Pollice Research Group, stored in `dft_G.json` (6,850 molecules, minimum −41.8341). The file is named after the DFT descriptor set it pairs with; the energies themselves are xTB-level, while the 29 descriptors in `dft_descriptors.csv` are DFT-level. `xtb_G.json` is a separate, larger molecule set (9,996 molecules, no SMILES in common with `dft_G.json`) with xTB energies; it and the `xtb_*` feature files are included but not used in the reported runs.
+Targets are xTB binding free energies in kJ/mol, computed with an in-house workflow in the Pollice Research Group, stored in `dft_G.json` (6,850 molecules, minimum −41.8341). The file is named after the DFT descriptor set it pairs with; the energies themselves are xTB-level, while the 29 descriptors in `dft_descriptors.csv` are DFT-level. `xtb_G.json` is a separate, larger molecule set (9,996 molecules, no SMILES in common with `dft_G.json`) with xTB energies; it and the `xtb_*` feature files are included but not used in the reported runs.
 
 ## Results
 
@@ -188,6 +188,8 @@ pip install -r requirements.txt
 ```
 
 ### One run (dataset, method, seed)
+
+All 6,850 energies are cached in `data/dft_G.json`, so runs need no quantum-chemistry software. To evaluate molecules outside the cache, set `BO_ENERGY_BACKEND="module:function"` to a function that takes a SMILES string and returns the energy in kJ/mol (`src/simulation.py`); the in-house workflow is not included.
 
 Set `DATASET` (`dft_descriptors`, `dft_chemberta2` or `dft_mordred`), `METHOD` (`vanilla`, `fabo`, `pca`, `pls`, `opls`, `random`, `outlier`) and `SEED`:
 
