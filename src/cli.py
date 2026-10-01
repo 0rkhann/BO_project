@@ -117,12 +117,25 @@ def build_parser():
         default=True,
         help="Standardise X before OPLS (default: on; --no-opls-scale to disable)",
     )
+    parser.add_argument(
+        "--prune-correlated",
+        type=float,
+        default=None,
+        metavar="THRESHOLD",
+        help="Drop constant columns, then greedily drop columns with |Pearson r| > "
+        "THRESHOLD against an already kept column (computed on the whole X table, "
+        "no targets; default: off)",
+    )
     return parser
 
 
 def build_config(args, kernel, acq, beta, seed):
     return {
-        "data": {"n_initial": args.n_initial, "test_frac": 0.1},
+        "data": {
+            "n_initial": args.n_initial,
+            "test_frac": 0.1,
+            "prune_correlated": args.prune_correlated,
+        },
         "optimization": {
             "n_iter": args.n_iter,
             "kernel": kernel,
