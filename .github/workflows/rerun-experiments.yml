@@ -11,7 +11,7 @@ on:
         default: "dft_descriptors dft_chemberta2 dft_mordred"
       methods:
         description: "Space-separated src.cli --mode values (BO methods, vanilla, random, and any new control mode)"
-        default: "fabo pca pls opls vanilla random"
+        default: "fabo pca pls opls vanilla random outlier"
       seeds:
         description: "Space-separated seeds"
         default: "42 43 44 45 46"
@@ -84,12 +84,12 @@ jobs:
           METHOD: ${{ matrix.method }}
           SEED: ${{ matrix.seed }}
           N_ITER: ${{ inputs.n_iter }}
-        # Same settings as run_all_dft_experiments.sh. Random search writes its own
-        # results/<dataset>_random_search/ folder, so it gets the base results dir.
+        # Same settings as run_all_dft_experiments.sh. The model-free baselines (random,
+        # outlier) write their own results/<dataset>_<mode>_search/ folder, so they get the base dir.
         run: |
           set -o pipefail
           mkdir -p logs
-          if [ "$METHOD" = random ]; then
+          if [ "$METHOD" = random ] || [ "$METHOD" = outlier ]; then
             OUT=results
             EXTRA=()
           else
