@@ -11,7 +11,7 @@
 
 # Bayesian Optimization for N-heterocyclic carbene (NHC) design
 
-Search a pool of 6,850 candidate NHC molecules for the one with the lowest DFT binding free energy while evaluating as few molecules as possible, and test whether the molecular representation and feature selection help. Five Bayesian-optimization (BO) variants are compared against two controls on three representations over 20 seeds (420 runs).
+Search a pool of 6,850 candidate NHC molecules for the one with the lowest xTB binding free energy while evaluating as few molecules as possible, and test whether the molecular representation and feature selection help. Five Bayesian-optimization (BO) variants are compared against two controls on three representations over 20 seeds (420 runs).
 
 **Orkhan Abdullayev** · Pollice Research Group (Artificial Organic Chemistry Lab), Stratingh Institute for Chemistry, University of Groningen · <https://pollicegroup.web.rug.nl/>
 
@@ -20,14 +20,17 @@ Search a pool of 6,850 candidate NHC molecules for the one with the lowest DFT b
 > **On DFT descriptors, a model-free "visit the most extreme molecules first" heuristic matches OPLS-guided BO** (both find the pool optimum in 20/20 seeds, final best −41.48 ± 1.26) **and reaches the optimum in more seeds than FABO, PCA and PLS (20/20 vs 16–19/20).** The surrogate still earns its keep on speed: OPLS, PLS and PCA get to good molecules much sooner than the heuristic (regret AUC, paired rank-biserial r from −0.77 to −0.96, Holm p < 0.01); FABO is not significantly faster (p = 0.19). On ChemBERTa-2 and Mordred, no method finds the optimum reliably and few differences from random search survive multiple-comparison correction.
 
 <p align="center">
-  <img src="plots/fig1_convergence.svg" alt="Running best energy versus BO iteration for seven methods on three representations (median and IQR over 20 seeds)" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="plots/fig1_convergence-dark.svg">
+    <img src="plots/fig1_convergence.svg" alt="Running best energy versus BO iteration for seven methods on three representations (median and IQR over 20 seeds)" width="100%">
+  </picture>
 </p>
 
 *Figure 1. Running best energy (median and IQR over 20 seeds). Dashed grey: random search; dash-dot blue: the outlier heuristic (no model). [PDF](plots/fig1_convergence.pdf).*
 
 ## The question
 
-Computing a binding free energy for one molecule is expensive (DFT or xTB), so screening a whole library is rarely affordable. BO fits a cheap probabilistic surrogate to the energies seen so far and uses it to pick the next molecule to evaluate. Here the pool is a fixed set of NHC-type catalyst candidates, the target is the DFT binding free energy (minimised), and the question is how the **molecular representation** (29 to 1,469 features) and **dimensionality reduction or feature selection** change the search.
+Computing a binding free energy for one molecule is expensive (DFT or xTB), so screening a whole library is rarely affordable. BO fits a cheap probabilistic surrogate to the energies seen so far and uses it to pick the next molecule to evaluate. Here the pool is a fixed set of NHC-type catalyst candidates, the target is the xTB binding free energy (minimised), and the question is how the **molecular representation** (29 to 1,469 features) and **dimensionality reduction or feature selection** change the search.
 
 ## Method overview
 
@@ -49,7 +52,7 @@ Representations (files in `data/`, feature CSVs stored with Git LFS):
 | ChemBERTa-2 embeddings | `dft_chemberta2.csv` | 384 |
 | Mordred descriptors | `dft_mordred.csv` | 1,469 |
 
-Targets are in `dft_G.json` (6,850 molecules, minimum −41.8341). `xtb_*` files are included but no xTB results are reported.
+Targets are xTB binding free energies, computed with an in-house workflow in the Pollice Research Group, stored in `dft_G.json` (6,850 molecules, minimum −41.8341). The file is named after the DFT descriptor set it pairs with; the energies themselves are xTB-level, while the 29 descriptors in `dft_descriptors.csv` are DFT-level. `xtb_G.json` is a separate, larger molecule set (9,996 molecules, no SMILES in common with `dft_G.json`) with xTB energies; it and the `xtb_*` feature files are included but not used in the reported runs.
 
 ## Results
 
@@ -100,7 +103,10 @@ Final best energy is mean ± sd over 20 seeds; "hit optimum" counts seeds whose 
 ### How fast each method reaches good molecules
 
 <p align="center">
-  <img src="plots/fig2_iterations_to_top1.svg" alt="Iterations to reach the top 1% of the pool, per seed, method and representation" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="plots/fig2_iterations_to_top1-dark.svg">
+    <img src="plots/fig2_iterations_to_top1.svg" alt="Iterations to reach the top 1% of the pool, per seed, method and representation" width="100%">
+  </picture>
 </p>
 
 *Figure 2. Iterations to the top 1% of each seed's pool. Seeds that never get there sit on the "not reached" line. \* significantly faster, † significantly slower than the outlier heuristic (Holm p < 0.05). [PDF](plots/fig2_iterations_to_top1.pdf).*
@@ -112,7 +118,10 @@ Final best energy is mean ± sd over 20 seeds; "hit optimum" counts seeds whose 
 ### Overall search quality (regret AUC)
 
 <p align="center">
-  <img src="plots/fig3_regret_auc.svg" alt="Median regret AUC per method and representation, with paired effect sizes against the outlier heuristic and random search" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="plots/fig3_regret_auc-dark.svg">
+    <img src="plots/fig3_regret_auc.svg" alt="Median regret AUC per method and representation, with paired effect sizes against the outlier heuristic and random search" width="100%">
+  </picture>
 </p>
 
 *Figure 3. Left: median regret AUC with IQR (lower is better). Right: paired rank-biserial r of each BO method against the outlier heuristic and against random search; \* Holm p < 0.05. [PDF](plots/fig3_regret_auc.pdf).*
@@ -124,10 +133,13 @@ Final best energy is mean ± sd over 20 seeds; "hit optimum" counts seeds whose 
 ### Why the outlier heuristic works on descriptors
 
 <p align="center">
-  <img src="plots/fig4_descriptor_outliers.svg" alt="Outlier score distribution and energy versus outlier score for the DFT descriptors" width="100%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="plots/fig4_descriptor_outliers-dark.svg">
+    <img src="plots/fig4_descriptor_outliers.svg" alt="Outlier score distribution and energy versus outlier score for the DFT descriptors" width="100%">
+  </picture>
 </p>
 
-*Figure 4. Left: distribution of the outlier score (max |z| over the 29 descriptors) with the ten lowest-energy molecules marked. Right: DFT energy against outlier score; the pool optimum is circled. [PDF](plots/fig4_descriptor_outliers.pdf).*
+*Figure 4. Left: distribution of the outlier score (max |z| over the 29 descriptors) with the ten lowest-energy molecules marked. Right: xTB energy against outlier score; the pool optimum is circled. [PDF](plots/fig4_descriptor_outliers.pdf).*
 
 - The global optimum (−41.8341) has outlier score 5.7σ, on the `f+` column, and is the 30th most extreme of 6,850 molecules. **`f+` is one of the suspect collinear columns discussed under Limitations, so the exact score should be read with care.**
 - The ten lowest-energy molecules all rank within the top 229 by outlier score (ranks 30, 39, 43, 48, 96, 106, 113, 170, 204, 229).
@@ -139,10 +151,10 @@ Final best energy is mean ± sd over 20 seeds; "hit optimum" counts seeds whose 
 
 - **Collinear descriptor columns.** The NMR, `f+`, `f-` and `fdual` columns of `dft_descriptors.csv` are almost perfectly collinear (|r| > 0.9999), probably an export error. The data are unchanged. The outlier score on descriptors can be dominated by these columns (the optimum's 5.7σ is on `f+`).
 - **Vanilla GP on Mordred is pruned.** To make a plain GP tractable on the 1,469 Mordred columns, those runs use `--prune-correlated 0.95`, which keeps 523 of 1,469 columns. Vanilla results on Mordred are therefore not a plain full-feature baseline.
-- **The surrogate targets are hard to learn.** Hold-out R² of Random Forest and XGBoost is only 0.13 to 0.27. This is genuine, not a bug: the energies have a long left tail that the models do not predict (parity plot below).
+- **The surrogate targets are hard to learn.** Hold-out R² of Random Forest and XGBoost is only 0.13 to 0.27. This is a property of the data, not a bug ([`scripts/diagnose_ml_r2.py`](scripts/diagnose_ml_r2.py)): a shuffled-target control gives R² of −0.05 to −0.07, so features and energies are aligned; a larger Random Forest and gradient boosting do not do better (at most 0.28 on descriptors); and the learning curve on descriptors rises only slowly (R² 0.19 with 548 training molecules, 0.28 with 5,480). Rank order is learned better than values (Spearman 0.43 to 0.56), which is what BO needs. The likely ceiling is noise in the xTB energies of these flexible molecules; repeating a few dozen calculations would measure it.
 - **Representations are not paired by molecule order.** `dft_descriptors.csv` lists the molecules in a different row order from the ChemBERTa-2 and Mordred files, so the same seed draws different molecules on descriptors. Random-search histories on ChemBERTa-2 and Mordred are identical (SMILES and energies, 20/20 seeds) because those two files share row order; they differ from the descriptor histories (0/20 seeds). Comparisons across representations are therefore not paired by molecule.
 - **Top 1% is relative to the pool.** The threshold (about −20) is the 1st percentile of each seed's pool, rebuilt in `scripts/analyze_results.py` with the same two `train_test_split` calls as `baselines/random_search.py` and checked against `best_pool_min` in all 420 histories. Iteration counts are censored at 100.
-- **Single target, single kernel.** All runs use the DFT target with Matern + EI; xTB data are not analysed.
+- **Single target, single kernel.** All runs use the 6,850-molecule xTB target in `dft_G.json` with Matern + EI; the separate `xtb_G.json` set is not analysed.
 
 | Representation | Model | Hold-out RMSE | Hold-out R² |
 |---|---|---|---|
@@ -154,7 +166,10 @@ Final best energy is mean ± sd over 20 seeds; "hit optimum" counts seeds whose 
 | Mordred | XGBoost | 4.23 | 0.227 |
 
 <p align="center">
-  <img src="ml_plots/ml_parity.svg" alt="Predicted versus true energy on the hold-out set for Random Forest and XGBoost on each representation" width="85%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="ml_plots/ml_parity-dark.svg">
+    <img src="ml_plots/ml_parity.svg" alt="Predicted versus true energy on the hold-out set for Random Forest and XGBoost on each representation" width="85%">
+  </picture>
 </p>
 
 *Hold-out set, n = 1,370 per panel. [PDF](ml_plots/ml_parity.pdf).*
@@ -216,7 +231,7 @@ pytest                                 # tests
 ├── assets/hero.svg              # README banner
 ├── analysis/                    # per-run metrics, summary, paired tests, full analysis output
 ├── baselines/                   # random-search and outlier-heuristic controls
-├── data/                        # DFT and xTB targets + feature CSVs (LFS)
+├── data/                        # xTB targets (dft_G.json, xtb_G.json) + feature CSVs (LFS)
 ├── src/
 │   ├── cli.py                   # entry point (bo-optimize / python -m src.cli)
 │   ├── gp_model.py, kernels/    # GP surrogate and kernels
@@ -225,7 +240,7 @@ pytest                                 # tests
 │   └── pipelines/               # one BO pipeline per method
 ├── ml_models/                   # RF / XGBoost training
 ├── plotting/make_figures.py     # all README figures
-├── scripts/                     # analyze_results.py, summarize_results.py, holdout metrics, cache helpers
+├── scripts/                     # analyze_results.py, summarize_results.py, diagnose_ml_r2.py, holdout metrics, cache helpers
 ├── results/                     # BO and control histories (CSV), 420 runs
 ├── ml_results/                  # supervised baseline predictions
 ├── plots/, ml_plots/            # figures (SVG for the README, PDF for slides)
