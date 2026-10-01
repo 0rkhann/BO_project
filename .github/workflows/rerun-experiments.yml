@@ -1,0 +1,159 @@
+name: Rerun experiments
+
+# Manual run: Actions tab > "Rerun experiments" > Run workflow.
+# One job per (dataset, method, seed); each job uploads its results as an artifact,
+# and the final job commits all of them to a new branch for review.
+on:
+  workflow_dispatch:
+    inputs:
+      datasets:
+        description: "Space-separated dataset names in data/ (without .csv)"
+        default: "dft_descriptors dft_chemberta2 dft_mordred"
+      methods:
+        description: "Space-separated src.cli --mode values (BO methods, vanilla, random, and any new control mode)"
+        default: "fabo pca pls opls vanilla random"
+      seeds:
+        description: "Space-separated seeds"
+        default: "42 43 44 45 46"
+      n_iter:
+        description: "BO iterations per run"
+        default: "100"
+      replace_results:
+        description: "Replace the whole results/ folder on the output branch (use for a full rerun)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - id: plan
+        env:
+          DATASETS: ${{ inputs.datasets }}
+          METHODS: ${{ inputs.methods }}
+          SEEDS: ${{ inputs.seeds }}
+          N_ITER: ${{ inputs.n_iter }}
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import itertools, json, os, re
+          name = re.compile(r"^[a-z0-9_]+$")
+          datasets, methods = os.environ["DATASETS"].split(), os.environ["METHODS"].split()
+          seeds = os.environ["SEEDS"].split()
+          bad = [v for v in datasets + methods if not name.match(v)] + [s for s in seeds if not s.isdigit()]
+          if bad or not os.environ["N_ITER"].isdigit():
+              raise SystemExit(f"invalid input: {bad or os.environ['N_ITER']}")
+          runs = [{"dataset": d, "method": m, "seed": int(s)} for d, m, s in itertools.product(datasets, methods, seeds)]
+          if len(runs) > 256:
+              raise SystemExit(f"{len(runs)} jobs exceeds the 256-job matrix limit")
+          print("matrix=" + json.dumps({"include": runs}))
+          EOF
+
+  run:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: ${{ matrix.dataset }} / ${{ matrix.method }} / seed ${{ matrix.seed }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          lfs: true # data/*.csv are Git LFS files
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: Run experiment
+        env:
+          DATASET: ${{ matrix.dataset }}
+          METHOD: ${{ matrix.method }}
+          SEED: ${{ matrix.seed }}
+          N_ITER: ${{ inputs.n_iter }}
+        # Same settings as run_all_dft_experiments.sh. Random search writes its own
+        # results/<dataset>_random_search/ folder, so it gets the base results dir.
+        run: |
+          set -o pipefail
+          mkdir -p logs
+          if [ "$METHOD" = random ]; then
+            OUT=results
+            EXTRA=()
+          else
+            OUT="results/${DATASET}/${METHOD}_Matern_EI/seed${SEED}"
+            EXTRA=(--kernels Matern --acquisitions EI --betas 1.0)
+          fi
+          python -m src.cli \
+            --mode "$METHOD" \
+            --input "data/${DATASET}.csv" \
+            --cache data/dft_G.json \
+            --output-dir "$OUT" \
+            --n-initial 10 \
+            --n-iter "$N_ITER" \
+            --seed "$SEED" \
+            --repeats 1 \
+            "${EXTRA[@]}" \
+            2>&1 | tee "logs/${DATASET}_${METHOD}_seed${SEED}.log"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: run-${{ matrix.dataset }}-${{ matrix.method }}-seed${{ matrix.seed }}
+          path: |
+            results/
+            logs/
+          if-no-files-found: warn
+          retention-days: 14
+
+  collect:
+    needs: run
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: run-*
+          path: new
+          merge-multiple: true
+
+      - name: Commit results to a new branch
+        env:
+          REPLACE: ${{ inputs.replace_results }}
+          BRANCH: experiment-results/run-${{ github.run_id }}
+        run: |
+          if [ "$REPLACE" = true ]; then
+            git rm -rq --ignore-unmatch results
+          fi
+          mkdir -p results
+          cp -r new/results/. results/
+          # Logs stay in the artifacts only.
+          git switch -c "$BRANCH"
+          git add results
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qm "Rerun experiments (workflow run ${GITHUB_RUN_ID})"
+          git push -q origin "$BRANCH"
+          {
+            echo "### Results pushed to \`$BRANCH\`"
+            echo "Open a PR: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${BRANCH}?expand=1"
+            echo
+            echo "Failed or cancelled jobs are listed on the run summary; their partial logs are in the artifacts."
+          } >> "$GITHUB_STEP_SUMMARY"
