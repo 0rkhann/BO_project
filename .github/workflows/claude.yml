@@ -44,11 +44,12 @@ jobs:
           # Pro/Max plan: run `claude setup-token` locally and store it as CLAUDE_CODE_OAUTH_TOKEN.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
+          # API billing instead: comment the line above and uncomment this one.
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
           # Neutral trigger and branch names: the author does not want the tool named in the repo.
           trigger_phrase: "/agent"
           branch_prefix: "agent/"
-          # API billing instead: comment the line above and uncomment this one.
-          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
           # Pinned superpowers plugin from the local marketplace in claude-plugins/.
           plugin_marketplaces: ./claude-plugins
