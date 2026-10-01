@@ -135,9 +135,6 @@ models/
 *.pkl
 *.joblib
 
-# ML models directory - exclude from repository
-ml_models/
-
 # Large data files - keep in repository for cluster experiments
 # data/*.csv files are now included
 
