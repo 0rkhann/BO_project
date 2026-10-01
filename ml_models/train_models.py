@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics import r2_score
 from sklearn.model_selection import train_test_split
 
 from src.data_io import load_descriptors, load_or_init_cache
@@ -102,8 +103,8 @@ def train_and_evaluate_models(
                 "Model": name,
                 "Train_RMSE": np.sqrt(np.mean((y_train - y_train_pred) ** 2)),
                 "Test_RMSE": np.sqrt(np.mean((y_test - y_test_pred) ** 2)),
-                "Train_R2": cv_results["r2_train_mean"],
-                "Test_R2": cv_results["r2_val_mean"],
+                "Test_R2": r2_score(y_test, y_test_pred),
+                "CV_Train_R2_mean": cv_results["r2_train_mean"],
                 "CV_RMSE_mean": cv_results["rmse_val_mean"],
                 "CV_RMSE_std": cv_results["rmse_val_std"],
                 "CV_R2_mean": cv_results["r2_val_mean"],

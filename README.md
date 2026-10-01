@@ -40,11 +40,13 @@ All files are in `data/`. The `*.csv` feature files are stored with Git LFS.
 | DFT binding free energy | `dft_G.json` | 6,850 molecules (SMILES + energy), minimum -41.8341 |
 | xTB binding free energy | `xtb_G.json` | 9,996 molecules (SMILES + energy), minimum about -41.14 |
 
-| Representation | DFT file | xTB file |
+| Representation | DFT file (rows x features) | xTB file (rows x features) |
 |---|---|---|
-| DFT-derived descriptors | `dft_descriptors.csv` | n/a |
-| ChemBERTa-2 embeddings | `dft_chemberta2.csv` | `xtb_chemberta2.csv` |
-| Mordred descriptors | `dft_mordred.csv` | `xtb_mordred.csv` |
+| DFT-derived descriptors | `dft_descriptors.csv` (6,850 x 29) | n/a |
+| ChemBERTa-2 embeddings | `dft_chemberta2.csv` (6,850 x 384) | `xtb_chemberta2.csv` (9,997 x 384) |
+| Mordred descriptors | `dft_mordred.csv` (6,850 x 1,469) | `xtb_mordred.csv` (9,997 x 1,015) |
+
+Feature counts exclude the `SMILES` column and were counted from the files. The two xTB CSVs have 9,997 rows, one more than the 9,996 entries in `xtb_G.json`; this has not been investigated (no xTB results are reported).
 
 All BO runs and ML baselines in this repository use the **DFT** target. xTB data is included, but no xTB results are.
 
@@ -62,6 +64,7 @@ Best energy found (lower is better; pool optimum = -41.8341) and the first itera
 | DFT descriptors | OPLS | -21.89 ± 1.79 | 48.8 ± 20.2 | 0/5 |
 | DFT descriptors | PCA | -34.37 ± 9.28 | 48.2 ± 19.2 | 1/5 |
 | DFT descriptors | PLS | -29.18 ± 11.56 | 36.8 ± 23.1 | 2/5 |
+| DFT descriptors | Random | -22.67 ± 0.97 | 19.2 ± 20.2 | 0/5 |
 | ChemBERTa-2 | FABO | -22.65 ± 2.60 | 67.0 ± 33.2 | 0/5 |
 | ChemBERTa-2 | OPLS | -22.43 ± 1.31 | 48.6 ± 26.9 | 0/5 |
 | ChemBERTa-2 | PCA | -22.58 ± 1.36 | 53.6 ± 41.2 | 0/5 |
@@ -74,7 +77,7 @@ Best energy found (lower is better; pool optimum = -41.8341) and the first itera
 | Mordred | Random | -24.21 ± 9.31 | 44.0 ± 22.3 | 0/5 |
 
 Notes on the table:
-- Random search does not depend on the feature set, and the repository contains identical random-search histories for the ChemBERTa-2 and Mordred folders. There is no random-search run for the DFT-descriptor set, so none is reported there.
+- Random search never uses the features: its splits and picks depend only on the row order, the seed and the cached energies. The ChemBERTa-2 and Mordred CSVs list the molecules in the same order, so their random-search histories are identical by design. `dft_descriptors.csv` lists the same 6,850 molecules in a different order, so its random-search runs draw different molecules and give different numbers.
 - The plots below show **median ± IQR**, so their legend values differ from the means in the table.
 
 <p align="center">
@@ -85,16 +88,16 @@ Per-representation comparisons of all methods: [`comparison_dft_descriptors.png`
 
 ### Supervised baselines: how learnable is the target?
 
-Random Forest and XGBoost trained on the full dataset (`ml_plots/ml_model_summary.csv`):
+Random Forest and XGBoost trained on 80% of the pool and evaluated on the 20% hold-out set (1,370 molecules). **RMSE and R² below are hold-out values** computed from `ml_results/*/*_predictions.csv` (`True_Energy` vs predicted energy). The 5-fold cross-validation means are kept separately in `ml_results/*/model_comparison.csv` (`CV_*` columns).
 
-| Representation | Model | Test RMSE | Test R² |
+| Representation | Model | Hold-out RMSE | Hold-out R² |
 |---|---|---|---|
-| DFT descriptors | Random Forest | 4.1 | 0.269 |
-| DFT descriptors | XGBoost | 4.1 | 0.262 |
-| Mordred | Random Forest | 4.2 | 0.232 |
-| Mordred | XGBoost | 4.2 | 0.227 |
-| ChemBERTa-2 | Random Forest | 4.4 | 0.156 |
-| ChemBERTa-2 | XGBoost | 4.5 | 0.132 |
+| DFT descriptors | Random Forest | 4.12 | 0.269 |
+| DFT descriptors | XGBoost | 4.14 | 0.262 |
+| Mordred | Random Forest | 4.21 | 0.232 |
+| Mordred | XGBoost | 4.23 | 0.227 |
+| ChemBERTa-2 | Random Forest | 4.42 | 0.156 |
+| ChemBERTa-2 | XGBoost | 4.48 | 0.132 |
 
 <p align="center">
   <img src="ml_plots/ml_performance_comparison.png" alt="ML model RMSE and R2 per representation" width="95%">
@@ -104,11 +107,11 @@ Predicted-vs-actual plot: [`ml_plots/ml_predictions_vs_actual.png`](ml_plots/ml_
 
 ### Key takeaways
 
-- **DFT descriptors + FABO was the only clear win:** -39.81 ± 2.06 vs -24.21 ± 9.31 for random search (ChemBERTa-2/Mordred folders), and the pool optimum (-41.8341) was found in 1 of 5 seeds.
+- **DFT descriptors + FABO was the only clear win:** -39.81 ± 2.06 vs -22.67 ± 0.97 for random search on the same descriptor set, and the pool optimum (-41.8341) was found in 1 of 5 seeds. PCA (-34.37) and PLS (-29.18) are also better than random on average, but with std of 9-12 over 5 seeds; OPLS (-21.89) is no better than random.
 - **On ChemBERTa-2 and Mordred, no BO variant is distinguishable from random search.** Means range from -21.22 to -26.10, all within the random-search spread (std 9.31).
 - **Results are seed-sensitive.** With only 5 seeds, several methods have std above 7 (e.g. PLS on descriptors ±11.56), so rankings among them should not be over-read.
 - **The method matters most on the small descriptor set:** FABO (-39.81) and PCA (-34.37) are far ahead of OPLS (-21.89) there; on the larger representations the methods differ little.
-- **The target is hard to learn** (test R² 0.13-0.27 for RF/XGBoost), and the representation with the highest R² (DFT descriptors) is also where BO worked best. This is consistent with, but does not prove, a link between predictability and BO success.
+- **The target is hard to learn** (hold-out R² 0.13-0.27 for RF/XGBoost), and the representation with the highest R² (DFT descriptors) is also where BO worked best. This is consistent with, but does not prove, a link between predictability and BO success.
 
 ## Repository structure
 
@@ -124,8 +127,9 @@ Predicted-vs-actual plot: [`ml_plots/ml_predictions_vs_actual.png`](ml_plots/ml_
 │   ├── acquisition/             # acquisition functions
 │   ├── feature_selection/       # FABO, PCA, PLS, OPLS, vanilla
 │   └── pipelines/               # one BO pipeline per method
+├── ml_models/                   # RF / XGBoost training and ML plots
 ├── plotting/                    # plot scripts
-├── scripts/                     # summarize_results.py, cache sync/verify helpers
+├── scripts/                     # summarize_results.py, recompute_holdout_metrics.py, cache sync/verify helpers
 ├── results/                     # BO + random-search histories (CSV)
 ├── ml_results/, ml_plots/       # supervised baseline outputs
 ├── plots/                       # BO comparison and GP diagnostic figures
@@ -167,17 +171,16 @@ python -m src.cli --mode fabo \
 
 Load a Python 3.11 module (or equivalent) on your cluster before creating the virtualenv. The original notes mention ~250 GB of cluster storage because the `vanilla` method needs a lot of memory.
 
-> **Note:** `train_all_ml_models.sh` calls `ml_models.train_models` and `ml_models/plot_model_results.py`, which are not present in this repository snapshot. The ML outputs in `ml_results/` and `ml_plots/` are included as results only.
-
 ## Reproducing the numbers and plots
 
 ```bash
 python scripts/summarize_results.py        # prints the Markdown tables above
+python scripts/recompute_holdout_metrics.py  # refreshes ml_results/*/model_comparison.csv from the saved predictions
 python plotting/plot_comprehensive_comparison.py
 python plotting/plot_gp_diagnostics.py
 ```
 
-The plotting scripts contain absolute paths from the original machine (`/home/orkhan/Desktop/bo_project/...`) near the top of each file. Edit `RESULTS_ROOT`, `OUTPUT_DIR` and `CACHE_FILES` to your checkout before running.
+The plotting scripts resolve `results/`, `data/` and `plots/` relative to the repository root, so they work from any checkout.
 
 ## Citation and acknowledgement
 

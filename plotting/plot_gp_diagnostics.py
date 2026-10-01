@@ -364,10 +364,9 @@ def plot_stability_summary(results_root: str, output_dir: str):
 def main():
     """Generate GP diagnostic plots for all experiments."""
     # Configuration
-    RESULTS_ROOT = os.path.expanduser("/home/orkhan/Desktop/bo_project/results")
-    OUTPUT_DIR = os.path.expanduser(
-        "/home/orkhan/Desktop/bo_project/plots/gp_diagnostics"
-    )
+    repo_root = Path(__file__).resolve().parents[1]
+    RESULTS_ROOT = str(repo_root / "results")
+    OUTPUT_DIR = str(repo_root / "plots" / "gp_diagnostics")
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
