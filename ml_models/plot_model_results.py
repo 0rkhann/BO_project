@@ -60,7 +60,7 @@ def create_scatter_plots(results, output_dir):
     # Create figure (2 rows x 3 columns)
     fig, axes = plt.subplots(2, 3, figsize=(15, 8))
     fig.suptitle(
-        "ML Model Predictions vs Actual DFT Energies",
+        "ML Model Predictions vs Actual xTB Energies",
         fontsize=14,
         fontweight="bold",
         y=0.98,
@@ -167,7 +167,7 @@ def create_bar_charts(results, output_dir):
     # Create figure with extra space for legend
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 4.5))
     fig.suptitle(
-        "ML Model Performance with DFT Energies", fontsize=13, fontweight="bold"
+        "ML Model Performance with xTB Energies", fontsize=13, fontweight="bold"
     )
 
     x = np.arange(len(datasets))

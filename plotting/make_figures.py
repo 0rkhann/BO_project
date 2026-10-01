@@ -30,30 +30,43 @@ COLOR = {"fabo": "#E69F00", "pca": "#56B4E9", "pls": "#009E73", "opls": "#D55E00
 STYLE = {"random": "--", "outlier": "-."}
 LABEL = {"fabo": "FABO", "pca": "PCA", "pls": "PLS", "opls": "OPLS", "vanilla": "Vanilla GP",
          "random": "Random", "outlier": "Outlier (no model)"}
-INK = "#7d8590"  # mid-tone text and axes: readable on GitHub light and dark backgrounds
-GRID = "#7d859040"
+# Each figure is drawn twice, with text colours matched to GitHub's light and dark themes; the README
+# picks one with <picture> and prefers-color-scheme. Font sizes assume the figure is shown about
+# 900 px wide, so the smallest text still renders at roughly 12 px.
+THEMES = {"light": ("#1f2328", "#d0d7de"), "dark": ("#e6edf3", "#30363d")}
+INK, GRID = THEMES["light"]
+THEME = "light"
 
-plt.rcParams.update({
-    "font.family": "DejaVu Sans", "font.size": 10, "text.color": INK, "axes.labelcolor": INK,
-    "axes.edgecolor": INK, "xtick.color": INK, "ytick.color": INK, "axes.titlecolor": INK,
-    "axes.spines.top": False, "axes.spines.right": False, "axes.grid": True, "grid.color": GRID,
-    "grid.linewidth": 0.6, "axes.axisbelow": True, "legend.frameon": False,
-    "figure.facecolor": "none", "axes.facecolor": "none", "savefig.transparent": True,
-})
+
+def apply_theme(theme):
+    global INK, GRID, THEME
+    THEME = theme
+    INK, GRID = THEMES[theme]
+    plt.rcParams.update({
+        "font.family": "DejaVu Sans", "font.size": 14, "axes.titlesize": 15, "axes.labelsize": 14,
+        "xtick.labelsize": 12.5, "ytick.labelsize": 12.5, "legend.fontsize": 13,
+        "text.color": INK, "axes.labelcolor": INK, "axes.edgecolor": INK, "xtick.color": INK,
+        "ytick.color": INK, "axes.titlecolor": INK, "axes.spines.top": False, "axes.spines.right": False,
+        "axes.grid": True, "grid.color": GRID, "grid.linewidth": 0.8, "axes.axisbelow": True,
+        "legend.frameon": False, "figure.facecolor": "none", "axes.facecolor": "none",
+        "savefig.transparent": True,
+    })
 
 PLOTS, ML_PLOTS = ROOT / "plots", ROOT / "ml_plots"
 REPS = ar.REPS
 
 
 def save(fig, out_dir, name):
+    """Light theme: <name>.svg (README default) and <name>.pdf (papers, slides). Dark: <name>-dark.svg."""
     out_dir.mkdir(exist_ok=True)
-    for ext in ("svg", "pdf"):
-        fig.savefig(out_dir / f"{name}.{ext}", bbox_inches="tight")
+    exts, stem = (("svg", "pdf"), name) if THEME == "light" else (("svg",), f"{name}-dark")
+    for ext in exts:
+        fig.savefig(out_dir / f"{stem}.{ext}", bbox_inches="tight", metadata={"Date": None} if ext == "svg" else None)
     plt.close(fig)
-    print(f"wrote {out_dir.name}/{name}.svg and .pdf")
+    print(f"wrote {out_dir.name}/{stem}." + " and .".join(exts))
 
 
-def method_legend(fig, y=1.02, ncol=7):
+def method_legend(fig, y=1.06, ncol=4):
     handles = [Line2D([], [], color=COLOR[m], lw=2.2, ls=STYLE.get(m, "-"), label=LABEL[m]) for m in ar.METHODS]
     fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, y), ncol=ncol, columnspacing=1.4,
                handlelength=2.6)
@@ -76,14 +89,14 @@ def fig_convergence(runs):
             ax.plot(x, med, color=COLOR[m], ls=STYLE.get(m, "-"), lw=2.0 if m not in ("random", "outlier") else 1.8)
         opt = runs[runs.rep == rep].pool_opt.median()
         ax.axhline(opt, color=INK, lw=0.9, ls=":")
-        ax.text(2, opt - 0.8, f"median pool optimum {opt:.1f}", ha="left", va="top", fontsize=8)
+        ax.text(2, opt - 0.8, f"median pool optimum {opt:.1f}", ha="left", va="top", fontsize=12)
         ax.set_ylim(-46, None)
         ax.set_title(label, loc="left", fontweight="bold")
         ax.set_xlabel("BO iteration")
         ax.set_xlim(1, ar.N_ITER)
     axes[0].set_ylabel("Best energy found (lower is better)")
     method_legend(fig)
-    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.tight_layout(rect=(0, 0, 1, 0.9))
     save(fig, PLOTS, "fig1_convergence")
 
 
@@ -101,69 +114,76 @@ def fig_top1(runs, tests):
             ax.hlines(med, i - 0.3, i + 0.3, color=COLOR[m], lw=2.6, zorder=4)
             if (rep, m) in t.index and t.loc[(rep, m)].p_holm < 0.05:
                 faster = t.loc[(rep, m)].rank_biserial < 0
-                ax.text(i, 108, "*" if faster else "†", ha="center", va="center", fontsize=13, color=INK)
+                ax.text(i, 108, "*" if faster else "†", ha="center", va="center", fontsize=17, color=INK)
         ax.axhline(ar.N_ITER, color=INK, lw=1.0, ls=":")
-        ax.text(len(ar.METHODS) - 0.5, ar.N_ITER + 1, "not reached", ha="right", va="bottom", fontsize=8)
+        ax.text(len(ar.METHODS) - 0.5, ar.N_ITER + 1, "not reached", ha="right", va="bottom", fontsize=12)
         ax.set_xticks(range(len(ar.METHODS)))
         ax.set_xticklabels([LABEL[m].replace(" (no model)", "") for m in ar.METHODS], rotation=45, ha="right")
         ax.set_title(label, loc="left", fontweight="bold")
         ax.set_ylim(-3, 114)
         ax.grid(axis="x", visible=False)
     axes[0].set_ylabel("Iterations to reach the top 1% of the pool\n(lower is faster)")
-    fig.text(0.5, -0.04, "Dots: seeds (20). Bar: IQR. Tick: median.   * significantly faster than the outlier "
-             "heuristic, † significantly slower (paired Wilcoxon, Holm p < 0.05)", ha="center", fontsize=8.5)
+    fig.text(0.5, -0.1, "Dots: seeds (20). Bar: IQR. Tick: median.\n* significantly faster than the outlier "
+             "heuristic, † significantly slower (paired Wilcoxon, Holm p < 0.05)", ha="center", fontsize=12.5)
     fig.tight_layout()
     save(fig, PLOTS, "fig2_iterations_to_top1")
 
 
 # ---- Figure 3: regret AUC + effect sizes ---------------------------------------------------------
 def fig_regret(runs, tests):
-    fig = plt.figure(figsize=(14, 4.4))
-    gs = fig.add_gridspec(1, 5, width_ratios=[1, 1, 1, 0.22, 1.55], wspace=0.12)
+    """Top: median regret AUC per method and representation. Bottom: paired effect sizes as a heatmap."""
+    fig = plt.figure(figsize=(13, 9.6))
+    gs = fig.add_gridspec(2, 3, height_ratios=[1, 0.95], hspace=0.55, wspace=0.08)
     ys = np.arange(len(ar.METHODS))[::-1]
     first = None
     for k, (rep, label) in enumerate(REPS.items()):
-        ax = fig.add_subplot(gs[k], sharey=first)
+        ax = fig.add_subplot(gs[0, k], sharey=first)
         first = first or ax
         for y, m in zip(ys, ar.METHODS):
             v = runs[(runs.rep == rep) & (runs.method == m)].regret_auc.to_numpy()
             q1, med, q3 = np.percentile(v, [25, 50, 75])
-            ax.hlines(y, q1, q3, color=COLOR[m], lw=3, alpha=0.5)
-            ax.plot(med, y, "o", color=COLOR[m], ms=8)
-        ax.set_xlim(0, 1.02)
+            ax.hlines(y, q1, q3, color=COLOR[m], lw=4, alpha=0.5)
+            ax.plot(med, y, "o", color=COLOR[m], ms=9)
+        ax.set_xlim(-0.03, 1.03)
+        ax.set_xticks([0, 0.25, 0.5, 0.75, 1])
+        ax.set_xticklabels(["0", "", "0.5", "", "1"])
         ax.set_ylim(-0.5, len(ar.METHODS) - 0.5)
         ax.set_title(label, loc="left", fontweight="bold")
-        ax.set_xlabel("Regret AUC (median, IQR)")
         ax.grid(axis="y", visible=False)
         if k == 0:
             ax.set_yticks(ys)
             ax.set_yticklabels([LABEL[m].replace(" (no model)", "") for m in ar.METHODS])
         else:
             plt.setp(ax.get_yticklabels(), visible=False)
-    ax = fig.add_subplot(gs[4])  # same y limits as the dot plots, so each cell lines up with its method
+        if k == 1:
+            ax.set_xlabel("Regret AUC: median and IQR over 20 seeds (lower is better)")
+
+    ax = fig.add_subplot(gs[1, :])
     cols = [(rep, ref) for ref in ("outlier", "random") for rep in REPS]
     t = tests[tests.metric == "regret_auc"].set_index(["rep", "ref", "method"])
     cmap = plt.get_cmap("PuOr")  # negative r (method better) -> orange, positive -> purple
+    hy = np.arange(len(ar.BO))[::-1]
     for j, (rep, ref) in enumerate(cols):
-        for y, m in zip(ys[:len(ar.BO)], ar.BO):
+        for y, m in zip(hy, ar.BO):
             r = t.loc[(rep, ref, m)]
-            ax.add_patch(plt.Rectangle((j - 0.5, y - 0.5), 1, 1, color=cmap(0.5 + 0.35 * r.rank_biserial), lw=0))
+            ax.add_patch(plt.Rectangle((j - 0.48, y - 0.46), 0.96, 0.92, color=cmap(0.5 + 0.35 * r.rank_biserial), lw=0))
             sig = r.p_holm < 0.05
-            ax.text(j, y, f"{r.rank_biserial:+.2f}" + ("*" if sig else ""), ha="center", va="center", fontsize=8.5,
+            ax.text(j, y, f"{r.rank_biserial:+.2f}" + ("*" if sig else ""), ha="center", va="center", fontsize=13,
                     fontweight="bold" if sig else "normal", color="black")
     ax.set_xlim(-0.5, len(cols) - 0.5)
+    ax.set_ylim(-0.5, len(ar.BO) + 0.3)
     ax.set_xticks(range(len(cols)))
-    ax.set_xticklabels(["Desc.", "ChemB.", "Mordred"] * 2, fontsize=8.5)
-    ax.set_ylim(-0.5, len(ar.METHODS) - 0.5)
-    ax.set_yticks(ys[:len(ar.BO)])
+    ax.set_xticklabels([REPS[rep] for rep, _ in cols], fontsize=12.5)
+    ax.set_yticks(hy)
     ax.set_yticklabels([LABEL[m] for m in ar.BO])
-    ax.tick_params(axis="y", length=0)
+    ax.tick_params(length=0)
     ax.grid(False)
-    for s in ax.spines.values():
-        s.set_visible(False)
-    ax.text(1, ys[0] + 0.62, "vs outlier", ha="center", fontweight="bold")
-    ax.text(4, ys[0] + 0.62, "vs random", ha="center", fontweight="bold")
-    ax.set_xlabel("Rank-biserial r (negative = better)\n* Holm p < 0.05", fontsize=8.5)
+    for sp in ax.spines.values():
+        sp.set_visible(False)
+    ax.axvline(2.5, color=INK, lw=1.2)
+    ax.text(1, len(ar.BO) - 0.05, "BO method vs outlier heuristic", ha="center", fontweight="bold")
+    ax.text(4, len(ar.BO) - 0.05, "BO method vs random search", ha="center", fontweight="bold")
+    ax.set_xlabel("Paired rank-biserial r on regret AUC (negative = BO method better;  * Holm p < 0.05)")
     save(fig, PLOTS, "fig3_regret_auc")
 
 
@@ -195,9 +215,9 @@ def fig_descriptor_space():
     b.scatter(score[top], e[top], s=18, color=hi, lw=0)
     b.scatter(score[best], e[best], s=130, facecolor="none", edgecolor=hi, lw=2)
     b.annotate(f"optimum {e[best]:.2f}\n{score[best]:.1f}σ on '{cols[z[best].argmax()]}'",
-               (score[best], e[best]), xytext=(14, 8), textcoords="offset points", fontsize=8.5, color=INK)
+               (score[best], e[best]), xytext=(14, 8), textcoords="offset points", fontsize=12.5, color=INK)
     b.set_xlabel("Outlier score: max |z|")
-    b.set_ylabel("DFT binding free energy")
+    b.set_ylabel("xTB binding free energy")
     b.set_title("Energy vs outlier score", loc="left", fontweight="bold")
     fig.tight_layout()
     save(fig, PLOTS, "fig4_descriptor_outliers")
@@ -207,7 +227,7 @@ def fig_descriptor_space():
 def fig_parity():
     reps = [("dft", "DFT descriptors"), ("chemberta2", "ChemBERTa-2"), ("mordred", "Mordred")]
     models = [("RandomForest", "Random Forest", "#5B6B7F"), ("XGBoost", "XGBoost", "#B59F85")]
-    fig, axes = plt.subplots(2, 3, figsize=(11, 6.6), sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 3, figsize=(12, 7.6), sharex=True, sharey=True)
     for i, (model, mlabel, col) in enumerate(models):
         for j, (ds, rlabel) in enumerate(reps):
             ax = axes[i, j]
@@ -220,7 +240,7 @@ def fig_parity():
             ax.plot(lim, lim, color=INK, lw=1, ls="--")
             ax.set_xlim(lim)
             ax.set_ylim(lim)
-            ax.text(0.04, 0.95, f"R² = {r2:.3f}\nRMSE = {rmse:.2f}", transform=ax.transAxes, va="top", fontsize=9)
+            ax.text(0.04, 0.95, f"R² = {r2:.3f}\nRMSE = {rmse:.2f}", transform=ax.transAxes, va="top", fontsize=13)
             if i == 0:
                 ax.set_title(rlabel, loc="left", fontweight="bold")
             if j == 0:
@@ -234,11 +254,13 @@ def fig_parity():
 def main():
     runs = pd.read_csv(ROOT / "analysis" / "per_run_metrics.csv")
     tests = pd.read_csv(ROOT / "analysis" / "paired_tests.csv")
-    fig_convergence(runs)
-    fig_top1(runs, tests)
-    fig_regret(runs, tests)
-    fig_descriptor_space()
-    fig_parity()
+    for theme in THEMES:
+        apply_theme(theme)
+        fig_convergence(runs)
+        fig_top1(runs, tests)
+        fig_regret(runs, tests)
+        fig_descriptor_space()
+        fig_parity()
 
 
 if __name__ == "__main__":
