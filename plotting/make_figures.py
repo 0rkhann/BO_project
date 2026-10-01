@@ -119,7 +119,7 @@ def fig_top1(runs, tests):
 # ---- Figure 3: regret AUC + effect sizes ---------------------------------------------------------
 def fig_regret(runs, tests):
     fig = plt.figure(figsize=(14, 4.4))
-    gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1, 1.55], wspace=0.12)
+    gs = fig.add_gridspec(1, 5, width_ratios=[1, 1, 1, 0.22, 1.55], wspace=0.12)
     ys = np.arange(len(ar.METHODS))[::-1]
     first = None
     for k, (rep, label) in enumerate(REPS.items()):
@@ -131,6 +131,7 @@ def fig_regret(runs, tests):
             ax.hlines(y, q1, q3, color=COLOR[m], lw=3, alpha=0.5)
             ax.plot(med, y, "o", color=COLOR[m], ms=8)
         ax.set_xlim(0, 1.02)
+        ax.set_ylim(-0.5, len(ar.METHODS) - 0.5)
         ax.set_title(label, loc="left", fontweight="bold")
         ax.set_xlabel("Regret AUC (median, IQR)")
         ax.grid(axis="y", visible=False)
@@ -139,7 +140,7 @@ def fig_regret(runs, tests):
             ax.set_yticklabels([LABEL[m].replace(" (no model)", "") for m in ar.METHODS])
         else:
             plt.setp(ax.get_yticklabels(), visible=False)
-    ax = fig.add_subplot(gs[3])
+    ax = fig.add_subplot(gs[4])  # same y limits as the dot plots, so each cell lines up with its method
     cols = [(rep, ref) for ref in ("outlier", "random") for rep in REPS]
     t = tests[tests.metric == "regret_auc"].set_index(["rep", "ref", "method"])
     cmap = plt.get_cmap("PuOr")  # negative r (method better) -> orange, positive -> purple
@@ -151,10 +152,12 @@ def fig_regret(runs, tests):
             ax.text(j, y, f"{r.rank_biserial:+.2f}" + ("*" if sig else ""), ha="center", va="center", fontsize=8.5,
                     fontweight="bold" if sig else "normal", color="black")
     ax.set_xlim(-0.5, len(cols) - 0.5)
-    ax.set_ylim(ys[len(ar.BO) - 1] - 0.5, ys[0] + 0.5)
     ax.set_xticks(range(len(cols)))
     ax.set_xticklabels(["Desc.", "ChemB.", "Mordred"] * 2, fontsize=8.5)
-    ax.set_yticks([])
+    ax.set_ylim(-0.5, len(ar.METHODS) - 0.5)
+    ax.set_yticks(ys[:len(ar.BO)])
+    ax.set_yticklabels([LABEL[m] for m in ar.BO])
+    ax.tick_params(axis="y", length=0)
     ax.grid(False)
     for s in ax.spines.values():
         s.set_visible(False)
@@ -203,7 +206,7 @@ def fig_descriptor_space():
 # ---- Parity plot (limitations) -------------------------------------------------------------------
 def fig_parity():
     reps = [("dft", "DFT descriptors"), ("chemberta2", "ChemBERTa-2"), ("mordred", "Mordred")]
-    models = [("RandomForest", "Random Forest", "#009E73"), ("XGBoost", "XGBoost", "#E69F00")]
+    models = [("RandomForest", "Random Forest", "#5B6B7F"), ("XGBoost", "XGBoost", "#B59F85")]
     fig, axes = plt.subplots(2, 3, figsize=(11, 6.6), sharex=True, sharey=True)
     for i, (model, mlabel, col) in enumerate(models):
         for j, (ds, rlabel) in enumerate(reps):
