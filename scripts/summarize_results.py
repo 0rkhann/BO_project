@@ -18,7 +18,7 @@ from recompute_holdout_metrics import collect as holdout_metrics_table
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"
 DATASETS = ["dft_descriptors", "dft_chemberta2", "dft_mordred"]
-METHODS = ["fabo", "opls", "pca", "pls"]
+METHODS = ["vanilla", "fabo", "opls", "pca", "pls"]
 
 
 def summarize_run(path, col):
@@ -34,7 +34,8 @@ def aggregate(dataset, method, files, col):
     runs = [summarize_run(f, col) for f in files]
     vals = np.array([r[0] for r in runs])
     its = np.array([r[1] for r in runs])
-    pool = runs[0][2]
+    # the pool optimum is per seed: each seed has its own test split and initial design
+    pools = np.array([r[2] for r in runs])
     return {
         "dataset": dataset,
         "method": method,
@@ -43,9 +44,11 @@ def aggregate(dataset, method, files, col):
         "best_std": vals.std(ddof=1) if len(vals) > 1 else np.nan,
         "iter_mean": its.mean(),
         "iter_std": its.std(ddof=1) if len(its) > 1 else np.nan,
-        "pool_min": pool,
+        "pool_min": pools.mean(),
+        "pool_min_min": pools.min(),
+        "pool_min_max": pools.max(),
         "n_iter": runs[0][3],
-        "n_hit_pool_min": int(np.sum(np.isclose(vals, pool))),
+        "n_hit_pool_min": int(np.sum(vals <= pools + 1e-6)),
     }
 
 
@@ -63,6 +66,11 @@ def collect():
         )
         if files:
             rows.append(aggregate(ds, "random", files, "best_random"))
+        files = sorted(
+            (RESULTS / f"{ds}_outlier_search").glob("seed*/outlier_search_history.csv")
+        )
+        if files:
+            rows.append(aggregate(ds, "outlier", files, "best_outlier"))
     return pd.DataFrame(rows)
 
 
@@ -70,7 +78,7 @@ def main():
     t = collect()
     print(
         "| Representation | Method | Seeds | Best energy (mean ± std) "
-        "| Iteration reached (mean ± std) | Seeds hitting pool optimum |"
+        "| Iteration reached (mean ± std) | Seeds hitting their pool optimum |"
     )
     print("|---|---|---|---|---|---|")
     for _, r in t.iterrows():
@@ -82,7 +90,8 @@ def main():
         )
     print()
     for ds, g in t.groupby("dataset", sort=False):
-        print(f"{ds}: pool optimum {g.pool_min.iloc[0]:.4f}, iterations per run {sorted(set(g.n_iter))}")
+        lo, hi = g.pool_min_min.min(), g.pool_min_max.max()
+        print(f"{ds}: per-seed pool optimum {lo:.4f} to {hi:.4f}, iterations per run {sorted(set(g.n_iter))}")
     print()
     ml = holdout_metrics_table()
     print("| Representation | Model | Hold-out RMSE | Hold-out R² |")

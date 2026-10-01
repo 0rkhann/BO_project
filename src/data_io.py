@@ -22,3 +22,9 @@ def append_to_cache(smiles: str, energy: float, cache_path: Path):
     cache = load_or_init_cache(cache_path)
     cache[smiles] = energy
     cache_path.write_text(json.dumps(cache, indent=2))
+
+def pool_min(smiles: list, cache: dict) -> float:
+    """Lowest cached energy among `smiles` (inf if none are cached).
+    BO and the baselines call this once, on the initial candidate pool."""
+    vals = [cache[s] for s in smiles if s in cache]
+    return float(min(vals)) if vals else float("inf")
