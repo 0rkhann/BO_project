@@ -33,6 +33,20 @@ from src.feature_selection.base import FeatureSelector
 from src.gp_model import build_gp, fit_gp, check_gp_stability
 from src.utils import logger, seed_everything
 
+POOL_CHUNK = 256
+
+
+def score_pool(acq, pool_x: torch.Tensor, chunk: int = POOL_CHUNK) -> np.ndarray:
+    """Evaluate a q=1 acquisition over the pool in chunks without autograd.
+
+    A full-pool batch makes the posterior build an [N, n_train, d] tensor, so
+    memory grows with pool size and training-set size; chunking bounds it.
+    """
+    x = pool_x.unsqueeze(1) if pool_x.dim() == 2 else pool_x
+    with torch.no_grad():
+        vals = [acq(x[i : i + chunk]).detach().cpu() for i in range(0, x.shape[0], chunk)]
+    return torch.cat(vals).squeeze(-1).numpy()
+
 # ──────────────────────────────────────────────────────────────────────────
 # metrics
 # ──────────────────────────────────────────────────────────────────────────
@@ -318,8 +332,7 @@ class BOPipeline:
 
             else:
                 # Single point acquisition
-                acq_in = pool_x.unsqueeze(1) if pool_x.dim() == 2 else pool_x
-                acq_vals = acq(acq_in).detach().cpu().squeeze(-1).numpy()
+                acq_vals = score_pool(acq, pool_x)
                 indices_next = [int(np.argmax(acq_vals))]
 
             # b) query next point(s)
