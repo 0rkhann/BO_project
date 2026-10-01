@@ -19,17 +19,17 @@ Computing a binding free energy for one molecule is expensive (DFT or xTB). Scre
 
 ## Method overview
 
-Each run starts from 10 random molecules, then performs 100 BO iterations on a pool with a 5% held-out test set (`config/default_config.yaml`). Energies are **minimised**.
+Each run starts from 10 random molecules, then performs 100 BO iterations on a pool with a 10% held-out test set (`--n-initial`, `--n-iter` and the other settings are CLI flags; there is no config file). Energies are **minimised**.
 
 | Component | Implemented options | Where |
 |---|---|---|
 | Surrogate | Exact GP (BoTorch `SingleTaskGP`) with ARD kernel: Matern (nu=2.5), RBF, Rational Quadratic | `src/gp_model.py`, `src/kernels/` |
-| Acquisition | EI (log-EI), PI, UCB; q-EI / q-UCB for batches | `src/acquisition/`, `src/acquisition.py` |
+| Acquisition | EI (log-EI), PI, UCB; q-EI / q-UCB for batches | `src/acquisition.py` |
 | Feature handling | `vanilla` (none), `fabo` (Spearman correlation + CV), `pca`, `pls`, `opls` | `src/feature_selection/`, `src/pipelines/` |
-| Baseline | Random search | `baselines/random_search.py` |
+| Baselines | Random search; outlier heuristic (no model: evaluate pool molecules by decreasing max abs z-score over all X) | `baselines/random_search.py`, `baselines/outlier_search.py` |
 | Supervised baselines | Random Forest, XGBoost (sanity check on how learnable the target is) | `ml_models.train_models` via `train_all_ml_models.sh` (see note below) |
 
-The reported experiments use **Matern + EI**, 4 feature methods (FABO, OPLS, PCA, PLS) and 5 seeds (42-46). The `vanilla` mode is implemented but has no results in this repository (it needs a lot of memory on the full descriptor sets).
+The reported experiments use **Matern + EI**, 4 feature methods (FABO, OPLS, PCA, PLS) and 5 seeds (42-46). The `vanilla` mode (plain GP on all features, no selection) is the control for the feature-selection methods; it has no results in this repository (it needs a lot of memory on the full descriptor sets). All results currently in `results/` predate the pipeline fixes in #17 and are being regenerated.
 
 ## Datasets and representations
 
@@ -118,13 +118,13 @@ Predicted-vs-actual plot: [`ml_plots/ml_predictions_vs_actual.png`](ml_plots/ml_
 ```
 .
 ├── assets/hero.svg              # README banner
-├── baselines/random_search.py   # random-search baseline
-├── config/default_config.yaml   # default BO / feature-selection / ML settings
+├── baselines/                   # random-search and outlier-heuristic baselines
+├── tests/                       # pytest suite
 ├── data/                        # DFT and xTB targets + feature CSVs (LFS)
 ├── src/
 │   ├── cli.py                   # entry point (bo-optimize / python -m src.cli)
 │   ├── gp_model.py, kernels/    # GP surrogate and kernels
-│   ├── acquisition/             # acquisition functions
+│   ├── acquisition.py           # acquisition functions
 │   ├── feature_selection/       # FABO, PCA, PLS, OPLS, vanilla
 │   └── pipelines/               # one BO pipeline per method
 ├── ml_models/                   # RF / XGBoost training and ML plots
@@ -161,7 +161,33 @@ python -m src.cli --mode fabo \
   --kernels Matern --acquisitions EI
 ```
 
-`--mode` is one of `vanilla`, `fabo`, `pca`, `pls`, `opls`, `random`. The package also installs a `bo-optimize` command via `setup.py`.
+`--mode` is one of `vanilla`, `fabo`, `pca`, `pls`, `opls`, `random`, `outlier`. The package also installs a `bo-optimize` command via `setup.py`.
+
+### One run (dataset, method, seed)
+
+This is the command the matrix workflow calls. Set `DATASET` (`dft_descriptors`, `dft_chemberta2` or `dft_mordred`), `METHOD` (`vanilla`, `fabo`, `pca`, `pls`, `opls`, `random`, `outlier`) and `SEED`:
+
+```bash
+# BO methods (vanilla, fabo, pca, pls, opls)
+python -m src.cli --mode "$METHOD" \
+  --input "data/$DATASET.csv" --cache data/dft_G.json \
+  --output-dir "results/$DATASET/${METHOD}_Matern_EI/seed$SEED" \
+  --n-initial 10 --n-iter 100 --seed "$SEED" \
+  --kernels Matern --acquisitions EI
+
+# model-free baselines (random, outlier): histories go to results/${DATASET}_{random,outlier}_search/seed$SEED/
+python -m src.cli --mode "$METHOD" \
+  --input "data/$DATASET.csv" --cache data/dft_G.json \
+  --output-dir results --n-initial 10 --n-iter 100 --seed "$SEED"
+```
+
+Feature-selection defaults: FABO and PCA choose their size adaptively (`--fabo-k`, `--fabo-threshold`, `--pca-n-components` override it); OPLS searches 1-10 predictive and 1-3 orthogonal components (`--opls-n-components`, `--opls-orthogonal` override it, `--no-opls-scale` disables standardisation). Every selector is refitted on the current training set (train X and y only) at every BO iteration. X is MinMax-scaled once on train + pool + test (no targets involved).
+
+### Tests
+
+```bash
+pytest
+```
 
 | Script | What it does | Where to run |
 |---|---|---|
