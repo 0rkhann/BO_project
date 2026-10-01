@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="260" viewBox="0 0 960 260" role="img" aria-label="Bayesian Optimization for Molecular Property Optimization">
+  <style>
+    .bg{fill:#f6f8fa;stroke:#d0d7de}
+    .title{fill:#1f2328;font:700 38px 'Segoe UI',Helvetica,Arial,sans-serif}
+    .tag{fill:#57606a;font:400 17px 'Segoe UI',Helvetica,Arial,sans-serif}
+    .kicker{fill:#0969da;font:600 13px 'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:1.5px}
+    .band{fill:#0969da;fill-opacity:.18}
+    .mean{fill:none;stroke:#0969da;stroke-width:2.5}
+    .pt{fill:#cf222e}
+    .axis{stroke:#8c959f;stroke-width:1}
+    @media (prefers-color-scheme: dark){
+      .bg{fill:#0d1117;stroke:#30363d}
+      .title{fill:#f0f6fc}
+      .tag{fill:#9198a1}
+      .kicker{fill:#58a6ff}
+      .band{fill:#58a6ff;fill-opacity:.22}
+      .mean{stroke:#58a6ff}
+      .pt{fill:#ff7b72}
+      .axis{stroke:#6e7681}
+    }
+  </style>
+  <rect class="bg" x="0.5" y="0.5" width="959" height="259" rx="14"/>
+  <text class="kicker" x="48" y="70">BAYESIAN OPTIMIZATION  |  MOLECULAR DESIGN</text>
+  <text class="title" x="48" y="122">Bayesian Optimization for</text>
+  <text class="title" x="48" y="166">Molecular Property Search</text>
+  <text class="tag" x="48" y="206">Gaussian-process search for low binding free energies in NHC chemical space</text>
+
+  <!-- GP posterior: uncertainty band, mean, observations -->
+  <line class="axis" x1="560" y1="215" x2="915" y2="215"/>
+  <path class="band" d="M565,120 C600,70 625,60 655,95 C685,130 700,150 730,125 C760,95 790,50 820,70 C850,90 880,120 910,95
+                        L910,150 C880,170 850,175 820,150 C790,130 760,165 730,175 C700,185 685,175 655,160 C625,150 600,140 565,170 Z"/>
+  <path class="mean" d="M565,145 C600,105 625,100 655,128 C685,155 700,162 730,150 C760,130 790,95 820,110 C850,125 880,148 910,122"/>
+  <circle class="pt" cx="565" cy="145" r="4.5"/>
+  <circle class="pt" cx="655" cy="128" r="4.5"/>
+  <circle class="pt" cx="730" cy="150" r="4.5"/>
+  <circle class="pt" cx="820" cy="110" r="4.5"/>
+  <circle class="pt" cx="910" cy="122" r="4.5"/>
+</svg>
