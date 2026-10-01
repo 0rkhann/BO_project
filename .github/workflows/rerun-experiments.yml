@@ -88,7 +88,10 @@ jobs:
         # outlier) write their own results/<dataset>_<mode>_search/ folder, so they get the base dir.
         run: |
           set -o pipefail
-          mkdir -p logs
+          # Drop the committed results so the artifact holds only this job's output;
+          # otherwise old files from every job's checkout overwrite the new ones when merged.
+          rm -rf results
+          mkdir -p logs results
           if [ "$METHOD" = random ] || [ "$METHOD" = outlier ]; then
             OUT=results
             EXTRA=()
@@ -145,6 +148,9 @@ jobs:
           fi
           mkdir -p results
           cp -r new/results/. results/
+          n_new=$(find new/results -name '*history.csv' | wc -l)
+          echo "History files from this run: $n_new"
+          if [ "$n_new" -eq 0 ]; then echo "No results produced"; exit 1; fi
           # Logs stay in the artifacts only.
           git switch -c "$BRANCH"
           git add results
