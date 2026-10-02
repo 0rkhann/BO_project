@@ -11,7 +11,7 @@
 
 # Bayesian Optimization for N-heterocyclic carbene (NHC) design
 
-Search a pool of 6,850 candidate NHC molecules for the one with the lowest xTB binding free energy while evaluating as few molecules as possible, and test whether the molecular representation and feature selection help. Five Bayesian-optimization (BO) variants are compared against two controls on three representations over 20 seeds (420 runs).
+Search a benchmark set of 6,850 NHC molecules, a subset of a larger candidate library, for the one with the lowest xTB binding free energy while evaluating as few molecules as possible, and test whether the molecular representation and feature selection help. Five Bayesian-optimization (BO) variants are compared against two controls on three representations over 20 seeds (420 runs).
 
 **Orkhan Abdullayev** · Pollice Research Group (Artificial Organic Chemistry Lab), Stratingh Institute for Chemistry, University of Groningen · <https://pollicegroup.web.rug.nl/>
 
@@ -141,7 +141,7 @@ Final best energy is mean ± sd over 20 seeds; "hit optimum" counts seeds whose 
 
 *Figure 4. Left: distribution of the outlier score (max |z| over the 29 descriptors) with the ten lowest-energy molecules marked. Right: xTB energy against outlier score; the pool optimum is circled. [PDF](plots/fig4_descriptor_outliers.pdf).*
 
-- The global optimum (−41.8341) has outlier score 5.7σ, on the `f+` column, and is the 30th most extreme of 6,850 molecules. **`f+` is one of the suspect collinear columns discussed under Limitations, so the exact score should be read with care.**
+- The optimum of the benchmark set (−41.8341) has outlier score 5.7σ, on the `f+` column, and is the 30th most extreme of 6,850 molecules. **`f+` is one of the suspect collinear columns discussed under Limitations, so the exact score should be read with care.**
 - The ten lowest-energy molecules all rank within the top 229 by outlier score (ranks 30, 39, 43, 48, 96, 106, 113, 170, 204, 229).
 - The heuristic reaches the pool optimum at a median of 28 iterations, i.e. within the top 0.45% of the 6,155-molecule pool by outlier score.
 - Over all molecules, outlier score and energy are only weakly rank-correlated (Spearman −0.226). The heuristic works because the best molecules sit in the tail of descriptor space, not because the score predicts energy globally.
@@ -154,6 +154,7 @@ Final best energy is mean ± sd over 20 seeds; "hit optimum" counts seeds whose 
 - **The surrogate targets are hard to learn.** Hold-out R² of Random Forest and XGBoost is only 0.13 to 0.27. This is a property of the data, not a bug ([`scripts/diagnose_ml_r2.py`](scripts/diagnose_ml_r2.py)): a shuffled-target control gives R² of −0.05 to −0.07, so features and energies are aligned; a larger Random Forest and gradient boosting do not do better (at most 0.28 on descriptors); and the learning curve on descriptors rises only slowly (R² 0.19 with 548 training molecules, 0.28 with 5,480). Rank order is learned better than values (Spearman 0.43 to 0.56), which is what BO needs. The likely ceiling is noise in the xTB energies of these flexible molecules; repeating a few dozen calculations would measure it.
 - **Representations are not paired by molecule order.** `dft_descriptors.csv` lists the molecules in a different row order from the ChemBERTa-2 and Mordred files, so the same seed draws different molecules on descriptors. Random-search histories on ChemBERTa-2 and Mordred are identical (SMILES and energies, 20/20 seeds) because those two files share row order; they differ from the descriptor histories (0/20 seeds). Comparisons across representations are therefore not paired by molecule.
 - **Top 1% is relative to the pool.** The threshold (about −20) is the 1st percentile of each seed's pool, rebuilt in `scripts/analyze_results.py` with the same two `train_test_split` calls as `baselines/random_search.py` and checked against `best_pool_min` in all 420 histories. Iteration counts are censored at 100.
+- **Benchmark subset, not the full library.** The 6,850 molecules are a subset of a larger candidate library, taken for benchmarking; every energy in it is precomputed, so every run can be replayed from the cache. "Optimum" always means the best molecule of this set, and the results show how methods behave on this set; they do not establish the best molecule of the full library.
 - **Single target, single kernel.** All runs use the 6,850-molecule xTB target in `dft_G.json` with Matern + EI; the separate `xtb_G.json` set is not analysed.
 
 | Representation | Model | Hold-out RMSE | Hold-out R² |
