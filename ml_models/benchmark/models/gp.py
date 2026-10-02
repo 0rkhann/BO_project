@@ -13,7 +13,7 @@ PRUNE_AT = 0.95
 
 class GP:
     name, tunable, grid = "gp", False, None
-    refit_estimate_s = 1800
+    refit_estimate_s = 2700
 
     def defaults(self): return {}
     def search_space(self, trial): return {}

@@ -12,7 +12,7 @@ REPO, FILE, REV = "jingang/TabICL", "tabicl-regressor-v2-20260212.ckpt", "4dcd34
 class TabICL:
     name, tunable = "tabicl", True
     checkpoint = f"{REPO}/{FILE}@{REV}"
-    refit_estimate_s = 900
+    refit_estimate_s = 2100
 
     def __init__(self):
         self.grid = [{"n_estimators": n} for n in (8, 16, 32)]

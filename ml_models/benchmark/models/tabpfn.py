@@ -13,7 +13,7 @@ GRID = [{"n_estimators": n, "softmax_temperature": t} for n in (8, 16) for t in 
 class TabPFN:
     name, tunable = "tabpfn", True
     checkpoint = f"{REPO}/{FILE}@{REV}"
-    refit_estimate_s = 900
+    refit_estimate_s = 1500
 
     def __init__(self):
         self.grid = list(GRID)

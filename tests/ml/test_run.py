@@ -45,3 +45,15 @@ def test_learning_curve_uses_nested_training_subsets(tmp_path, monkeypatch):
     lc = m["learning_curve"]
     assert [p["fraction"] for p in lc] == [0.1, 0.25, 0.5, 1.0]
     assert lc[-1]["n_train"] == 120 and all(p["n_train"] < 120 for p in lc[:-1])
+
+
+def test_budget_reduction_skips_tuning_and_is_recorded(tmp_path, monkeypatch):
+    folds = fake_data(tmp_path, monkeypatch)
+    budget = tmp_path / "budget.json"
+    budget.write_text(json.dumps({"reduced": {"ridge/dft_descriptors": {
+        "params": {"alpha": 3.0}, "reason": "grid exceeds the CPU budget"}}}))
+    monkeypatch.setattr(run, "BUDGET", budget)
+    m = run.run_cell("ridge", "dft_descriptors", 0, tmp_path / "out", n_trials=5, job_budget_s=60, folds_path=folds)
+    saved = json.loads((tmp_path / "out/ridge/dft_descriptors/fold0/best_params.json").read_text())
+    assert m["status"] == "ok" and m["n_trials_done"] == 0 and saved == {"alpha": 3.0}
+    assert m["reduced"] == "grid exceeds the CPU budget"
