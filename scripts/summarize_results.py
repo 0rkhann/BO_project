@@ -4,7 +4,7 @@
 Reads only files that are already in the repository:
   results/**/bo_iteration_history.csv
   results/*_random_search/seed*/random_search_history.csv
-  ml_results/*/*_predictions.csv  (hold-out RMSE / R², True_Energy vs prediction)
+  ml_results/benchmark/summary.csv  (5-fold ML benchmark)
 
 Usage: python scripts/summarize_results.py
 """
@@ -13,7 +13,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from recompute_holdout_metrics import collect as holdout_metrics_table
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "results"
@@ -93,13 +92,13 @@ def main():
         lo, hi = g.pool_min_min.min(), g.pool_min_max.max()
         print(f"{ds}: per-seed pool optimum {lo:.4f} to {hi:.4f}, iterations per run {sorted(set(g.n_iter))}")
     print()
-    ml = holdout_metrics_table()
-    print("| Representation | Model | Hold-out RMSE | Hold-out R² |")
-    print("|---|---|---|---|")
-    for _, r in ml.iterrows():
-        print(f"| {r.Representation} | {r.Model} | {r.Test_RMSE:.2f} | {r.Test_R2:.3f} |")
-    print(f"\nHold-out set size per model: {sorted(set(ml.n_test))}")
-
+    f = ROOT / "ml_results" / "benchmark" / "summary.csv"
+    if f.exists():
+        ml = pd.read_csv(f)
+        print("| Representation | Model | Folds | R² (mean ± sd) |")
+        print("|---|---|---|---|")
+        for _, r in ml.dropna(subset=["r2_mean"]).sort_values(["rep", "model"]).iterrows():
+            print(f"| {r.rep} | {r.model} | {r.folds_ok}/{r.folds_total} | {r.r2_mean:.3f} ± {r.r2_sd:.3f} |")
 
 if __name__ == "__main__":
     main()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Per-run metrics, summary tables and paired tests for the BO experiments.
 
-Reads results/**/*history.csv and ml_results/*/*_predictions.csv. The only other
+Reads results/**/*history.csv and ml_results/benchmark/summary.csv. The only other
 input is the data the pipelines themselves read (data/<rep>.csv, data/dft_G.json),
 used to rebuild each seed's candidate pool with the same train_test_split calls as
 baselines/random_search.py. The rebuilt pool optimum is asserted equal to
@@ -200,15 +200,18 @@ def md_tests(t):
 
 
 def md_ml():
-    print("\n#### ML surrogates, hold-out\n")
-    print("| Representation | Model | n | RMSE | R² |")
-    print("|---|---|---|---|---|")
-    for ds, label in [("dft", "DFT descriptors"), ("chemberta2", "ChemBERTa-2"), ("mordred", "Mordred")]:
-        for model in ["RandomForest", "XGBoost"]:
-            df = pd.read_csv(ML_RESULTS / ds / f"{model.lower()}_predictions.csv")
-            y, p = df["True_Energy"].to_numpy(), df[f"{model}_Predicted_Energy"].to_numpy()
-            r2 = 1 - ((y - p) ** 2).sum() / ((y - y.mean()) ** 2).sum()
-            print(f"| {label} | {model} | {len(df)} | {np.sqrt(np.mean((y - p) ** 2)):.2f} | {r2:.3f} |")
+    f = ML_RESULTS / "benchmark" / "summary.csv"
+    print("\n#### ML benchmark (5-fold nested CV, mean ± sd)\n")
+    if not f.exists():
+        print("ml_results/benchmark/summary.csv not found; run the ML benchmark workflow first.")
+        return
+    s = pd.read_csv(f)
+    print("| Representation | Model | Folds | R² | RMSE | Spearman | Top-1% recall |")
+    print("|---|---|---|---|---|---|---|")
+    fmt = lambda r, m, d: f"{r[m + '_mean']:.{d}f} ± {r[m + '_sd']:.{d}f}" if pd.notna(r.get(m + "_mean")) else "—"
+    for _, r in s.sort_values(["rep", "model"]).iterrows():
+        print(f"| {r.rep} | {r.model} | {r.folds_ok}/{r.folds_total} | {fmt(r, 'r2', 3)} | {fmt(r, 'rmse', 2)} "
+              f"| {fmt(r, 'spearman', 3)} | {fmt(r, 'top1_recall', 2)} |")
 
 
 def main():
