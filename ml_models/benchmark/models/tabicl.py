@@ -26,8 +26,10 @@ class TabICL:
         from tabicl import TabICLRegressor
         torch.set_num_threads(os.cpu_count())
         self.pre = InFold(scale=False).fit(X)
+        # batch_size=1 runs one ensemble member at a time; the default (8) builds a
+        # (8, rows, columns, embed_dim) tensor that exceeds a 16 GB runner on 384+ columns.
         self.m = TabICLRegressor(model_path=str(weights.fetch(REPO, FILE, REV)), allow_auto_download=False,
-                                 device="cpu", **params)
+                                 device="cpu", batch_size=1, **params)
         self.m.fit(self.pre.transform(X), y)
         return self
 
