@@ -7,13 +7,13 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
-    name="bo-project",
+    name="nhc-bo-benchmark",
     version="0.1.0",
     author="Orkhan Abdullayev",
     description="Bayesian Optimization for Molecular Property Optimization",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/0rkhann/BO_project",
+    url="https://github.com/0rkhann/nhc-bo-benchmark",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",

@@ -180,8 +180,8 @@ Final best energy is mean ± sd over 20 seeds; "hit optimum" counts seeds whose 
 ### Install
 
 ```bash
-git clone https://github.com/0rkhann/BO_project.git
-cd BO_project
+git clone https://github.com/0rkhann/nhc-bo-benchmark.git
+cd nhc-bo-benchmark
 git lfs pull                      # feature CSVs are stored with Git LFS
 python -m venv .bo_project_env
 source .bo_project_env/bin/activate
@@ -214,7 +214,7 @@ python -m src.cli --mode "$METHOD" \
 
 ### The full experiment grid
 
-The **Rerun experiments** GitHub Actions workflow (`.github/workflows/rerun-experiments.yml`, manual `workflow_dispatch`) runs the whole matrix and commits the histories to a new branch. Defaults: all three datasets, `fabo pca pls opls vanilla random outlier`, seeds 42 to 61, 100 iterations, `results/` replaced. The workflow does the vanilla Mordred pruning for you. The 420 histories in `results/` come from run [36920300898](https://github.com/0rkhann/BO_project/actions/runs/36920300898).
+The **Rerun experiments** GitHub Actions workflow (`.github/workflows/rerun-experiments.yml`, manual `workflow_dispatch`) runs the whole matrix and commits the histories to a new branch. Defaults: all three datasets, `fabo pca pls opls vanilla random outlier`, seeds 42 to 61, 100 iterations, `results/` replaced. The workflow does the vanilla Mordred pruning for you. The 420 histories in `results/` come from run [36920300898](https://github.com/0rkhann/nhc-bo-benchmark/actions/runs/36920300898).
 
 `run_all_dft_experiments.sh` (local) and `submit_all_experiments.sh` (SLURM array job) are older drivers; the local one covers FABO, PLS, PCA and OPLS with seeds 42 to 46 only. `train_all_ml_models.sh` trains the Random Forest and XGBoost baselines.
 
@@ -258,7 +258,7 @@ This repository is the work of **Orkhan Abdullayev** at the [Pollice Research Gr
 ```
 Abdullayev, O. Bayesian Optimization for Molecular Property Optimization.
 Pollice Research Group, University of Groningen.
-GitHub repository: https://github.com/0rkhann/BO_project
+GitHub repository: https://github.com/0rkhann/nhc-bo-benchmark
 ```
 
 Built on [BoTorch](https://botorch.org/), [GPyTorch](https://gpytorch.ai/), PyTorch and scikit-learn. Released under the [MIT License](LICENSE).

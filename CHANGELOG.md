@@ -2,7 +2,7 @@
 
 ## v1.0.0
 
-Every BO and ML result changed in this release. The numbers in the internship report correspond to [`v0.1.0-internship`](https://github.com/0rkhann/BO_project/tree/v0.1.0-internship).
+Every BO and ML result changed in this release. The numbers in the internship report correspond to [`v0.1.0-internship`](https://github.com/0rkhann/nhc-bo-benchmark/tree/v0.1.0-internship).
 
 ### Fixed (BO pipeline)
 - Feature selectors were fitted on scaled inputs but applied to raw inputs from the first iteration on.
