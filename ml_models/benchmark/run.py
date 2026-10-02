@@ -56,7 +56,7 @@ def _fit_and_score(adapter, params, X, y, smiles, tr, te):
     return pred
 
 
-def run_cell(model, rep, fold, out_root=OUT, n_trials=None, job_budget_s=340 * 60,
+def run_cell(model, rep, fold, out_root=OUT, n_trials=None, job_budget_s=300 * 60,
              learning_curve=False, folds_path=FOLDS):
     t0 = time.time()
     cell = Path(out_root) / model / rep / f"fold{fold}"
@@ -116,7 +116,7 @@ def main():
     ap.add_argument("--rep", required=True)
     ap.add_argument("--fold", type=int, required=True)
     ap.add_argument("--n-trials", type=int)
-    ap.add_argument("--job-budget-min", type=float, default=340)
+    ap.add_argument("--job-budget-min", type=float, default=300)  # 50 min under the 350-min job timeout
     ap.add_argument("--learning-curve", action="store_true")
     a = ap.parse_args()
     if not FOLDS.exists():

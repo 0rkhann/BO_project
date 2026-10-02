@@ -50,7 +50,17 @@ def tune(adapter, X, y, smiles, inner: str, n_trials: int, time_cap_s: float):
     else:
         sampler = optuna.samplers.TPESampler(seed=0)
     study = optuna.create_study(direction="minimize", sampler=sampler)
-    study.optimize(objective, n_trials=n_trials, timeout=time_cap_s, catch=())
+    t_start, slowest = time.time(), [0.0]
+
+    def stop_before_overrun(study, trial):
+        # Optuna only checks its timeout between trials, so stop once the slowest trial so far
+        # would no longer fit in the remaining time.
+        if trial.datetime_complete and trial.datetime_start:
+            slowest[0] = max(slowest[0], (trial.datetime_complete - trial.datetime_start).total_seconds())
+        if time.time() - t_start + slowest[0] > time_cap_s:
+            study.stop()
+
+    study.optimize(objective, n_trials=n_trials, timeout=time_cap_s, catch=(), callbacks=[stop_before_overrun])
     done = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
     log = study.trials_dataframe()
     if not done:

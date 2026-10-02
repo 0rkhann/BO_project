@@ -7,6 +7,7 @@ from ml_models.benchmark.preprocess import InFold
 
 class XGB:
     name, tunable, grid = "xgb", True, None
+    refit_estimate_s = 600   # largest trees on Mordred at 5,480 rows
 
     def defaults(self):
         return {"n_estimators": 300, "learning_rate": 0.05, "max_depth": 6, "min_child_weight": 1,
