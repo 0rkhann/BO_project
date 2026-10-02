@@ -132,6 +132,7 @@ dmypy.json
 
 # Project-specific
 models/
+!ml_models/benchmark/models/
 *.pkl
 *.joblib
 
