@@ -23,5 +23,7 @@ jobs:
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
+          # The fast ML tests need the tuner; heavy model packages stay out and their tests skip.
+          pip install optuna==5.0.0 huggingface_hub
       - name: Test
         run: python -m pytest -q
