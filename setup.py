@@ -28,7 +28,7 @@ setup(
         "Topic :: Scientific/Engineering :: Chemistry",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.10",
     install_requires=[req.split(">=")[0] for req in requirements if not req.startswith("#")],
     extras_require={
         "dev": [
@@ -37,6 +37,7 @@ setup(
             "flake8>=4.0.0",
             "mypy>=0.950",
         ],
+        "ml": [l.strip() for l in open("requirements-ml.txt") if "==" in l],
         "optional": [
             "xgboost>=1.6.0",
             "pyopls>=1.0.0",

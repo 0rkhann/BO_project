@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <img alt="Python" src="https://img.shields.io/badge/python-3.8%2B-blue?logo=python&logoColor=white">
+  <img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white">
   <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green">
   <img alt="BoTorch" src="https://img.shields.io/badge/BoTorch-GP%20%2B%20BO-6f42c1">
   <img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-%E2%89%A51.12-ee4c2c?logo=pytorch&logoColor=white">

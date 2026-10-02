@@ -181,3 +181,8 @@ xtbopt.xyz
 xtbopt.log
 xtbhess.xyz
 xtbscan.log
+
+# Model checkpoints from the ML benchmark
+*.ckpt
+lightning_logs/
+chemprop_runs/
