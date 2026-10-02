@@ -145,7 +145,7 @@ For Chemprop, `<rep>` is `smiles` or `smiles+dft_descriptors`. Out-of-fold predi
 These connect the benchmark to the README's BO findings. All are analysis on the benchmark outputs; only the learning curve needs compute.
 
 1. **Outlier score as a ranker.** In each outer test fold, molecules are ranked by the same max |z| score as the BO `outlier` control, with z computed on the outer training part only. It predicts no energies, so only Spearman and top-1% recall are reported for it; R², RMSE and tail RMSE are not defined. This tests the headline mechanism directly: does extremeness alone rank the best molecules as well as trained models do?
-2. **Tail recall against BO speed.** A table sets, for each representation, the best model's top-1% recall and the GP's top-1% recall next to the BO median regret AUC of the best BO method on that representation (from `analysis/summary.csv`). With three representations this is shown side by side, not reported as a correlation.
+2. **Tail recall against BO speed.** A table sets, for each representation, the best model's top-1% recall and the GP's top-1% recall next to the BO median regret AUC of the best BO method on that representation (column `auc_median` of `analysis/summary.csv`). With three representations this is shown side by side, not reported as a correlation.
 3. **Learning curve.** See the protocol above. It answers whether more data would lift the best model, which is the most direct evidence for a data ceiling versus a model ceiling.
 
 Not included: SHAP feature importance. The NMR, `f+`, `f-` and `fdual` columns carry one signal, so attributions would be split arbitrarily between them and the chemistry reading would be misleading until the descriptor export is checked.
