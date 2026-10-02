@@ -1,0 +1,5 @@
+number,value,datetime_start,datetime_complete,duration,params_n_estimators,params_softmax_temperature,system_attrs_grid_id,system_attrs_search_space,state
+0,3.926533071286272,2026-10-02 10:11:54.559315,2026-10-02 11:22:48.143400,0 days 01:10:53.584085,16,0.75,0,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
+1,3.9263831137625087,2026-10-02 11:22:48.143486,2026-10-02 12:33:25.195091,0 days 01:10:37.051605,16,0.9,1,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
+2,3.9297331175853523,2026-10-02 12:33:25.195163,2026-10-02 13:08:48.819273,0 days 00:35:23.624110,8,0.9,2,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
+3,3.929913538344707,2026-10-02 13:08:48.819346,2026-10-02 13:44:16.643221,0 days 00:35:27.823875,8,0.75,3,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
