@@ -1,6 +1,6 @@
 # Tuned ML benchmark with Chemprop and tabular foundation models
 
-Date: 2026-10-02 · Status: design approved and refined for gaps, awaiting spec review
+Date: 2026-10-02 · Status: design approved, refined twice for gaps, awaiting spec review
 
 ## Goal
 
@@ -24,6 +24,8 @@ Out of scope: replacing the GP inside the BO loop. `src/` and `results/` do not 
 | Compute | GitHub Actions CPU, one job per (model, representation, outer fold) |
 | TabPFN-3 on CPU | Run with the CPU size guard overridden. If too slow, first reduce to the default configuration only; if even that does not fit, report "not run (CPU budget)". |
 | CI | A pytest workflow on every pull request |
+| Story links | Outlier score as a zero-training ranker; tail recall set against BO speed per representation; learning curve for each representation's best model |
+| History | Git tags for the internship state and the fixed pipeline, plus a CHANGELOG |
 | Target | `data/dft_G.json`: xTB binding free energies in kJ/mol, 6,850 molecules |
 
 ## Data facts (checked on 2026-10-02)
@@ -107,6 +109,7 @@ requirements-ml.txt  requirements-ml.lock
   - TabPFN raises an error on CPU above 1,000 training rows by default (`MAX_CPU_SAMPLES = 1000`), so `ignore_pretraining_limits=True` is required.
   - If the grid does not fit in a job, the cell runs the default configuration only, without inner tuning. If even that does not fit, the cell is reported as "not run (CPU budget)".
   - The README records every reduction.
+- **Learning curve:** for each representation's best model, the tuned parameters from each outer fold are refit on 10%, 25%, 50% and 100% of that fold's training part (nested subsets, `seed=0`) and scored on the same outer test fold. There is no re-tuning, so the cost is four refits per fold.
 - **Refit reserve:** each job's tuning cap is its 340-minute budget minus twice the measured refit time, so tuning can never consume the time needed for the final fit.
 
 ## Outputs
@@ -134,7 +137,48 @@ For Chemprop, `<rep>` is `smiles` or `smiles+dft_descriptors`. Out-of-fold predi
   - every model against tuned Random Forest within each representation;
   - the best model of each representation against the others.
 - Holm correction within each family. Effect sizes are reported as ΔR², ΔRMSE and Δrecall.
+- **Across representations:** the folds are shared by SMILES, so the ML comparisons are paired across representations too, unlike the BO runs. Each model's best representation is tested against its other representations with the same corrected t-test.
 - `comparisons.csv` records the outcome of the headline rule.
+
+## Story links
+
+These connect the benchmark to the README's BO findings. All are analysis on the benchmark outputs; only the learning curve needs compute.
+
+1. **Outlier score as a ranker.** In each outer test fold, molecules are ranked by the same max |z| score as the BO `outlier` control, with z computed on the outer training part only. It predicts no energies, so only Spearman and top-1% recall are reported for it; R², RMSE and tail RMSE are not defined. This tests the headline mechanism directly: does extremeness alone rank the best molecules as well as trained models do?
+2. **Tail recall against BO speed.** A table sets, for each representation, the best model's top-1% recall and the GP's top-1% recall next to the BO median regret AUC of the best BO method on that representation (from `analysis/summary.csv`). With three representations this is shown side by side, not reported as a correlation.
+3. **Learning curve.** See the protocol above. It answers whether more data would lift the best model, which is the most direct evidence for a data ceiling versus a model ceiling.
+
+Not included: SHAP feature importance. The NMR, `f+`, `f-` and `fdual` columns carry one signal, so attributions would be split arbitrarily between them and the chemistry reading would be misleading until the descriptor export is checked.
+
+## Provenance and reproducibility
+
+- **Data hashes:** `folds.json` and every `metrics.json` record the SHA-256 of `data/dft_G.json` and of the feature table used. `summarize.py` refuses to combine cells with different hashes, so results become visibly stale when a data file changes (for example after the descriptor export is corrected).
+- **Model weights:** the TabPFN-3 and TabICL checkpoints are pinned by file name and Hugging Face revision hash. Both are recorded per cell.
+- **Code:** each `metrics.json` records the git SHA, package versions (from `requirements-ml.lock`) and the Actions run ID.
+- **Seeds:** fixed for folds, Optuna, NumPy, torch, XGBoost and Chemprop. Thread scheduling can still change the last digits of a metric; the README says so.
+- **Cost:** `summary.csv` reports CPU-minutes per model and representation.
+
+## Licences
+
+The repository is MIT. TabPFN-3 weights and outputs are under the TabPFN-3 non-commercial licence. A short `NOTICE` file in `ml_results/benchmark/tabpfn/` states that those prediction files may only be used for non-commercial purposes, and the README repeats it.
+
+## Packaging
+
+- `ml_models/` and `ml_models/benchmark/` get `__init__.py` files and run as modules: `python -m ml_models.benchmark.run`.
+- `setup.py` gets an `ml` extra that reads `requirements-ml.txt`, so `pip install -e ".[ml]"` installs the benchmark.
+- `python_requires` is corrected from `>=3.8` to `>=3.10`, which current torch and BoTorch need. The `ml` extra needs 3.11 because of Chemprop. The README Python badge is updated to match.
+- `.gitignore` gets Chemprop and Lightning checkpoint entries (`*.ckpt`, `lightning_logs/`, `chemprop_runs/`). Workflow artifacts upload only metrics, predictions, best parameters and trial logs, never model files.
+
+## History
+
+- **Tags:**
+  - `v0.1.0-internship` on `0a6bf4a` (2025-10-11), the state of the repository at the end of the internship, before any fixes;
+  - `v1.0.0` on the merge that adds this benchmark and the updated README.
+- **`CHANGELOG.md`:**
+  - lists the bugs fixed in the BO pipeline (input-space mismatch, frozen selectors, one-component OPLS, wasted first pick, scaler fitted on 10 points, ignored FABO flags, per-seed pool optimum, memory growth);
+  - says which reported results changed, and that the numbers in the internship report correspond to `v0.1.0-internship`;
+  - notes the move from the single 80/20 ML split to the nested 5-fold benchmark and the relabelling of the energies as xTB.
+- The README links the CHANGELOG near the top, so a reader who saw the internship numbers understands why they differ.
 
 ## Failure handling
 
@@ -176,6 +220,8 @@ The TabPFN, TabICL, Chemprop and GP adapter tests skip with `pytest.importorskip
   - The "hard to learn" limitation is updated with the result.
   - Reproduction gets the workflow dispatch and a single-fold command.
   - A TabPFN-3 licence note is added.
+  - A short "Story links" subsection reports the outlier-score ranker, the tail-recall versus BO table and the learning curve.
+- **README claims to recheck** against the new numbers before merging: "R² is low but ranking is learned" and the Spearman range, the "hard to learn" limitation and its suggested noise ceiling, and every statement in the headline and Results that mentions the surrogate. Each is kept, reworded or removed, and the PR lists which.
 
 ## Cleanup (after the new results exist)
 
@@ -198,7 +244,9 @@ The TabPFN, TabICL, Chemprop and GP adapter tests skip with `pytest.importorskip
 - **End to end:** `run.py` works with Random Forest on synthetic data, and a forced error writes `status: "failed"`.
 - **Metrics:** top-1% recall and tail RMSE match hand-computed examples, including a fold where fewer than one molecule falls in the top 1% (the count is rounded up to at least one).
 - **Statistics:** the corrected t-test and the headline rule match hand-computed examples.
-- **Partial reruns:** merging replaces only the rerun cells, and mixing package versions within a cell is refused.
+- **Partial reruns:** merging replaces only the rerun cells, and mixing package versions or data hashes within a cell is refused.
+- **Outlier ranker:** its z-scores use training-part statistics only, checked with a test where the test fold holds an extreme value.
+- **Learning curve:** subsets are nested (the 10% subset is inside the 25% subset, and so on) and drawn only from the outer training part.
 
 ## Risks
 
