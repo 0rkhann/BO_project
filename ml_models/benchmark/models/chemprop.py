@@ -6,7 +6,7 @@ import numpy as np
 
 class Chemprop:
     name, tunable, grid = "chemprop", True, None
-    refit_estimate_s = 1200
+    refit_estimate_s = 1500
     MAX_EPOCHS, PATIENCE = 100, 15
 
     def defaults(self):

@@ -17,6 +17,7 @@ from ml_models.benchmark import data, metrics, models, tune
 ROOT = data.ROOT
 FOLDS = ROOT / "ml_results" / "benchmark" / "folds.json"
 OUT = ROOT / "ml_results" / "benchmark"
+BUDGET = ROOT / "ml_models" / "benchmark" / "budget.json"   # cells reduced by the timing spike
 TRIALS = {"ridge": 30, "rf": 50, "xgb": 50, "chemprop": 20}
 INNER = {"chemprop": "holdout10"}
 LC_FRACTIONS = [0.1, 0.25, 0.5, 1.0]
@@ -73,7 +74,12 @@ def run_cell(model, rep, fold, out_root=OUT, n_trials=None, job_budget_s=340 * 6
         adapter = models.get(model)
         result["checkpoint"] = getattr(adapter, "checkpoint", None)
         params = {}
-        if adapter.tunable:
+        reduced = json.loads(BUDGET.read_text()).get("reduced", {}).get(f"{model}/{rep}") if BUDGET.exists() else None
+        if reduced:
+            params = dict(reduced["params"])
+            result["reduced"] = reduced["reason"]
+            pd.DataFrame().to_csv(cell / "trials.csv", index=False)
+        elif adapter.tunable:
             refit_reserve = getattr(adapter, "refit_estimate_s", 60) * 2
             cap = max(60.0, job_budget_s - (time.time() - t0) - refit_reserve)
             params, log = tune.tune(adapter, X[tr], y[tr], list(np.asarray(smiles, dtype=object)[tr]),
