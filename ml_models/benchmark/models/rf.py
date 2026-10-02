@@ -7,6 +7,7 @@ from ml_models.benchmark.preprocess import InFold
 
 class RF:
     name, tunable, grid = "rf", True, None
+    refit_estimate_s = 1200   # largest trees on Mordred at 5,480 rows
 
     def defaults(self):
         return {"n_estimators": 300, "max_features": 0.5, "min_samples_leaf": 1, "max_depth": 0}
