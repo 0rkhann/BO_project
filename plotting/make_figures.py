@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Figures for the README: convergence, iterations to top 1%, regret AUC + effect sizes,
-the descriptor-space outlier plot (plots/) and the ML parity plot (ml_plots/).
+the descriptor-space outlier plot (plots/), and the ML benchmark and parity plots (ml_plots/).
 
-Every number comes from the CSVs in results/ and ml_results/ and from analysis/*.csv
+Every number comes from the CSVs in results/, ml_results/benchmark/ and analysis/*.csv
 (written by scripts/analyze_results.py); figure 4 also reads data/dft_descriptors.csv
 and data/dft_G.json. Each figure is written as SVG (README) and PDF (papers, slides).
 
@@ -224,29 +224,84 @@ def fig_descriptor_space():
 
 
 # ---- Parity plot (limitations) -------------------------------------------------------------------
+ML_BENCH = ROOT / "ml_results" / "benchmark"
+ML_ORDER = ["mean", "ridge", "rf", "xgb", "gp", "tabpfn", "tabicl", "chemprop", "outlier"]
+ML_LABEL = {"mean": "Mean predictor", "ridge": "Ridge", "rf": "Random Forest", "xgb": "XGBoost",
+            "gp": "GP (BO surrogate)", "tabpfn": "TabPFN-3", "tabicl": "TabICLv2", "chemprop": "Chemprop",
+            "outlier": "Outlier score (no model)"}
+ML_REP = {"dft_descriptors": ("DFT descriptors", "#E69F00", "o"), "dft_chemberta2": ("ChemBERTa-2", "#56B4E9", "s"),
+          "dft_mordred": ("Mordred", "#009E73", "D"), "smiles": ("SMILES graph", "#999999", "^"),
+          "smiles+dft_descriptors": ("SMILES graph + DFT descriptors", "#CC79A7", "v")}
+
+
+def _ml_summary():
+    f = ML_BENCH / "summary.csv"
+    if not f.exists():
+        print("skip ML figures: ml_results/benchmark/summary.csv not found")
+        return None
+    return pd.read_csv(f)
+
+
+def fig_ml_benchmark():
+    s = _ml_summary()
+    if s is None:
+        return
+    models = [m for m in ML_ORDER if m in set(s.model)]
+    panels = [("r2", "R² (5-fold, mean ± sd)", 0.0), ("spearman", "Spearman ρ", None),
+              ("top1_recall", "Top-1% recall at 5%", 0.05)]
+    fig, axes = plt.subplots(1, 3, figsize=(15, 0.62 * len(models) + 2.6), sharey=True)
+    ys = {m: len(models) - 1 - i for i, m in enumerate(models)}
+    offsets = dict(zip(ML_REP, np.linspace(-0.28, 0.28, len(ML_REP))))
+    for ax, (metric, title, ref) in zip(axes, panels):
+        for _, r in s.iterrows():
+            if r.model not in ys or pd.isna(r.get(f"{metric}_mean")):
+                continue
+            label, col, marker = ML_REP[r.rep]
+            y = ys[r.model] + offsets[r.rep]
+            ax.errorbar(r[f"{metric}_mean"], y, xerr=r.get(f"{metric}_sd", 0) or 0, fmt=marker, color=col,
+                        ms=8, elinewidth=2, capsize=0, label=label)
+        if ref is not None:
+            ax.axvline(ref, color=INK, lw=1, ls=":")
+        ax.set_title(title, loc="left", fontweight="bold")
+        ax.grid(axis="y", visible=False)
+    axes[0].set_yticks(list(ys.values()))
+    axes[0].set_yticklabels([ML_LABEL[m] for m in models])
+    handles = {h.get_label(): h for ax in axes for h in ax.get_legend_handles_labels()[0]}
+    fig.legend(handles.values(), handles.keys(), loc="upper center", bbox_to_anchor=(0.5, 1.07), ncol=5,
+               handletextpad=0.3, columnspacing=1.4)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    save(fig, ML_PLOTS, "ml_benchmark")
+
+
 def fig_parity():
-    reps = [("dft", "DFT descriptors"), ("chemberta2", "ChemBERTa-2"), ("mordred", "Mordred")]
-    models = [("RandomForest", "Random Forest", "#5B6B7F"), ("XGBoost", "XGBoost", "#B59F85")]
-    fig, axes = plt.subplots(2, 3, figsize=(12, 7.6), sharex=True, sharey=True)
-    for i, (model, mlabel, col) in enumerate(models):
-        for j, (ds, rlabel) in enumerate(reps):
-            ax = axes[i, j]
-            df = pd.read_csv(ROOT / "ml_results" / ds / f"{model.lower()}_predictions.csv")
-            y, p = df["True_Energy"].to_numpy(), df[f"{model}_Predicted_Energy"].to_numpy()
-            r2 = 1 - ((y - p) ** 2).sum() / ((y - y.mean()) ** 2).sum()
-            rmse = np.sqrt(np.mean((y - p) ** 2))
-            ax.scatter(y, p, s=6, color=col, alpha=0.35, lw=0)
-            lim = [min(y.min(), p.min()) - 1, max(y.max(), p.max()) + 1]
-            ax.plot(lim, lim, color=INK, lw=1, ls="--")
-            ax.set_xlim(lim)
-            ax.set_ylim(lim)
-            ax.text(0.04, 0.95, f"R² = {r2:.3f}\nRMSE = {rmse:.2f}", transform=ax.transAxes, va="top", fontsize=13)
-            if i == 0:
-                ax.set_title(rlabel, loc="left", fontweight="bold")
-            if j == 0:
-                ax.set_ylabel(f"{mlabel}\npredicted energy")
-            if i == 1:
-                ax.set_xlabel("True energy (hold-out, n = 1,370)")
+    """Out-of-fold predictions of the best model (highest mean R²) for each representation."""
+    s = _ml_summary()
+    if s is None:
+        return
+    trained = s[~s.model.isin(["mean", "outlier"])].dropna(subset=["r2_mean"])
+    groups = [("dft_descriptors",), ("dft_chemberta2",), ("dft_mordred",), ("smiles", "smiles+dft_descriptors")]
+    fig, axes = plt.subplots(2, 2, figsize=(12, 11), sharex=True, sharey=True)
+    for ax, reps in zip(axes.flat, groups):
+        g = trained[trained.rep.isin(reps)]
+        if g.empty:
+            ax.set_visible(False)
+            continue
+        best = g.sort_values("r2_mean").iloc[-1]
+        df = pd.read_csv(ML_BENCH / "oof_predictions" / f"{best.model}_{best.rep}.csv")
+        y, p = df["true"].to_numpy(), df["pred"].to_numpy()
+        label, col, _ = ML_REP[best.rep]
+        ax.scatter(y, p, s=6, color=col, alpha=0.35, lw=0)
+        lim = [min(y.min(), p.min()) - 1, max(y.max(), p.max()) + 1]
+        ax.plot(lim, lim, color=INK, lw=1, ls="--")
+        ax.set_xlim(lim)
+        ax.set_ylim(lim)
+        ax.text(0.04, 0.95, f"{ML_LABEL[best.model]}\nR² = {best.r2_mean:.3f} ± {best.r2_sd:.3f}\nn = {len(y):,} ({best.folds_ok} folds)",
+                transform=ax.transAxes, va="top", fontsize=13)
+        ax.set_title(label, loc="left", fontweight="bold")
+    for ax in axes[1]:
+        ax.set_xlabel("True energy, kJ/mol (out-of-fold)")
+    for ax in axes[:, 0]:
+        ax.set_ylabel("Predicted energy, kJ/mol")
     fig.tight_layout()
     save(fig, ML_PLOTS, "ml_parity")
 
@@ -260,6 +315,7 @@ def main():
         fig_top1(runs, tests)
         fig_regret(runs, tests)
         fig_descriptor_space()
+        fig_ml_benchmark()
         fig_parity()
 
 

@@ -5,8 +5,8 @@
 Requires Python 3.8 or newer.
 
 ```bash
-git clone https://github.com/0rkhann/BO_project.git
-cd BO_project
+git clone https://github.com/0rkhann/nhc-bo-benchmark.git
+cd nhc-bo-benchmark
 
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate

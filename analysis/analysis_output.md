@@ -119,16 +119,35 @@
 | Mordred | opls | -0.17 | -0.98 | 19/1/0 | 5.72e-06 | 8.58e-05 |
 | Mordred | vanilla | -0.0811 | -0.73 | 17/3/0 | 0.00271 | 0.0108 |
 
-#### ML surrogates, hold-out
+#### ML benchmark (5-fold nested CV, mean ± sd)
 
-| Representation | Model | n | RMSE | R² |
-|---|---|---|---|---|
-| DFT descriptors | RandomForest | 1370 | 4.12 | 0.269 |
-| DFT descriptors | XGBoost | 1370 | 4.14 | 0.262 |
-| ChemBERTa-2 | RandomForest | 1370 | 4.42 | 0.156 |
-| ChemBERTa-2 | XGBoost | 1370 | 4.48 | 0.132 |
-| Mordred | RandomForest | 1370 | 4.21 | 0.232 |
-| Mordred | XGBoost | 1370 | 4.23 | 0.227 |
+| Representation | Model | Folds | R² | RMSE | Spearman | Top-1% recall |
+|---|---|---|---|---|---|---|
+| dft_chemberta2 | gp | 5/5 | 0.142 ± 0.006 | 4.35 ± 0.14 | 0.410 ± 0.013 | 0.23 ± 0.09 |
+| dft_chemberta2 | mean | 5/5 | -0.000 ± 0.001 | 4.70 ± 0.15 | — | 0.04 ± 0.06 |
+| dft_chemberta2 | outlier | 5/5 | — | — | 0.060 ± 0.025 | 0.07 ± 0.07 |
+| dft_chemberta2 | rf | 5/5 | 0.200 ± 0.016 | 4.20 ± 0.15 | 0.474 ± 0.009 | 0.31 ± 0.06 |
+| dft_chemberta2 | ridge | 5/5 | 0.265 ± 0.021 | 4.03 ± 0.15 | 0.544 ± 0.021 | 0.30 ± 0.09 |
+| dft_chemberta2 | tabicl | 5/5 | 0.299 ± 0.027 | 3.94 ± 0.17 | 0.580 ± 0.016 | 0.27 ± 0.09 |
+| dft_chemberta2 | tabpfn | 5/5 | 0.310 ± 0.027 | 3.90 ± 0.16 | 0.590 ± 0.017 | 0.33 ± 0.06 |
+| dft_chemberta2 | xgb | 5/5 | 0.205 ± 0.016 | 4.19 ± 0.16 | 0.478 ± 0.010 | 0.24 ± 0.06 |
+| dft_descriptors | gp | 5/5 | 0.251 ± 0.035 | 4.07 ± 0.16 | 0.493 ± 0.026 | 0.46 ± 0.06 |
+| dft_descriptors | mean | 5/5 | -0.000 ± 0.001 | 4.70 ± 0.15 | — | 0.04 ± 0.06 |
+| dft_descriptors | outlier | 5/5 | — | — | 0.226 ± 0.030 | 0.44 ± 0.13 |
+| dft_descriptors | rf | 5/5 | 0.267 ± 0.026 | 4.02 ± 0.15 | 0.509 ± 0.022 | 0.51 ± 0.12 |
+| dft_descriptors | ridge | 5/5 | 0.203 ± 0.023 | 4.19 ± 0.14 | 0.427 ± 0.019 | 0.54 ± 0.08 |
+| dft_descriptors | tabicl | 5/5 | 0.311 ± 0.019 | 3.90 ± 0.15 | 0.553 ± 0.017 | 0.56 ± 0.09 |
+| dft_descriptors | tabpfn | 5/5 | 0.317 ± 0.024 | 3.89 ± 0.15 | 0.557 ± 0.018 | 0.60 ± 0.08 |
+| dft_descriptors | xgb | 5/5 | 0.270 ± 0.028 | 4.02 ± 0.16 | 0.514 ± 0.022 | 0.56 ± 0.14 |
+| dft_mordred | gp | 5/5 | 0.109 ± 0.007 | 4.44 ± 0.13 | 0.424 ± 0.021 | 0.24 ± 0.13 |
+| dft_mordred | mean | 5/5 | -0.000 ± 0.001 | 4.70 ± 0.15 | — | 0.04 ± 0.06 |
+| dft_mordred | outlier | 5/5 | — | — | 0.018 ± 0.041 | 0.11 ± 0.10 |
+| dft_mordred | rf | 5/5 | 0.275 ± 0.025 | 4.00 ± 0.16 | 0.559 ± 0.017 | 0.26 ± 0.15 |
+| dft_mordred | ridge | 5/5 | 0.290 ± 0.020 | 3.96 ± 0.16 | 0.572 ± 0.016 | 0.34 ± 0.11 |
+| dft_mordred | tabpfn | 5/5 | 0.325 ± 0.024 | 3.86 ± 0.15 | 0.607 ± 0.018 | 0.33 ± 0.10 |
+| dft_mordred | xgb | 5/5 | 0.281 ± 0.021 | 3.99 ± 0.16 | 0.567 ± 0.014 | 0.27 ± 0.15 |
+| smiles | chemprop | 5/5 | 0.280 ± 0.017 | 3.99 ± 0.15 | 0.575 ± 0.020 | 0.36 ± 0.07 |
+| smiles+dft_descriptors | chemprop | 4/5 | 0.383 ± 0.028 | 3.70 ± 0.18 | 0.638 ± 0.016 | 0.61 ± 0.09 |
 
 #### Facts
 

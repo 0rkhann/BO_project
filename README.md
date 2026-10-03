@@ -13,7 +13,22 @@
 
 Search a benchmark set of 6,850 NHC molecules, a subset of a larger candidate library, for the one with the lowest xTB binding free energy while evaluating as few molecules as possible, and test whether the molecular representation and feature selection help. Five Bayesian-optimization (BO) variants are compared against two controls on three representations over 20 seeds (420 runs).
 
-**Orkhan Abdullayev** · Pollice Research Group (Artificial Organic Chemistry Lab), Stratingh Institute for Chemistry, University of Groningen · <https://pollicegroup.web.rug.nl/>
+**Orkhan Abdullayev** · Pollice Research Group (Artificial Organic Chemistry Lab), Stratingh Institute for Chemistry, University of Groningen · <https://pollicegroup.web.rug.nl/> · [Changelog](CHANGELOG.md)
+
+## Key findings
+
+- **BO works on DFT descriptors.**
+  - OPLS-, PLS- and PCA-guided BO find the optimum of the 6,850-molecule set in a median of 16–23 iterations (plus 10 initial molecules).
+  - A model-free "most extreme molecule first" ranking reaches the same final result, but more slowly.
+- **On ChemBERTa-2 and Mordred no BO method finds the optimum reliably.**
+- **The energies are hard to predict.**
+  - Tuned trees reach hold-out R² 0.20–0.28.
+  - Tabular foundation models raise this to 0.30–0.33.
+  - A graph network on SMILES plus the DFT descriptors reaches 0.38, the best result (Chemprop, 4 of 5 folds).
+- **For BO, ranking the best molecules matters more than R².**
+  - The best model's R² is about 0.32 on every representation.
+  - Its top-1% recall is 0.60 on DFT descriptors but only 0.33–0.34 on the other two, which matches where BO succeeds.
+- **The BO loop's own GP is the weakest trained surrogate on ChemBERTa-2 and Mordred** (R² 0.14 and 0.11).
 
 ## Headline result
 
@@ -42,7 +57,7 @@ Each run starts from 10 random molecules, holds out 10% of the molecules as a te
 | Acquisition | EI (log-EI), PI, UCB; q-EI / q-UCB for batches. Reported runs use EI | `src/acquisition.py` |
 | Feature handling | `vanilla` (none), `fabo` (Spearman correlation + CV), `pca`, `pls`, `opls`; refitted on the current training set at every iteration | `src/feature_selection/`, `src/pipelines/` |
 | Controls | `random` search; `outlier` heuristic: evaluate pool molecules in decreasing order of max abs z-score over all features, no model | `baselines/` |
-| Supervised baselines | Random Forest, XGBoost, to gauge how learnable the target is | `ml_models/` |
+| Surrogate benchmark | Mean, Ridge, Random Forest, XGBoost, the BO GP, TabPFN-3, TabICLv2, Chemprop; tuned with Optuna in nested 5-fold CV | `ml_models/benchmark/` |
 
 Representations (files in `data/`, feature CSVs stored with Git LFS):
 
@@ -147,41 +162,113 @@ Final best energy is mean ± sd over 20 seeds; "hit optimum" counts seeds whose 
 - Over all molecules, outlier score and energy are only weakly rank-correlated (Spearman −0.226). The heuristic works because the best molecules sit in the tail of descriptor space, not because the score predicts energy globally.
 - On ChemBERTa-2 and Mordred the ranking is uninformative about energy: it reaches the top 1% early but never gets past a final best of about −21.
 
-## Limitations
+## Surrogate benchmark: how learnable are the energies?
 
-- **Collinear descriptor columns.** The NMR, `f+`, `f-` and `fdual` columns of `dft_descriptors.csv` are almost perfectly collinear (|r| > 0.9999), probably an export error. The data are unchanged. The outlier score on descriptors can be dominated by these columns (the optimum's 5.7σ is on `f+`).
-- **Vanilla GP on Mordred is pruned.** To make a plain GP tractable on the 1,469 Mordred columns, those runs use `--prune-correlated 0.95`, which keeps 523 of 1,469 columns. Vanilla results on Mordred are therefore not a plain full-feature baseline.
-- **The surrogate targets are hard to learn.** Hold-out R² of Random Forest and XGBoost is only 0.13 to 0.27. This is a property of the data, not a bug ([`scripts/diagnose_ml_r2.py`](scripts/diagnose_ml_r2.py)): a shuffled-target control gives R² of −0.05 to −0.07, so features and energies are aligned; a larger Random Forest and gradient boosting do not do better (at most 0.28 on descriptors); and the learning curve on descriptors rises only slowly (R² 0.19 with 548 training molecules, 0.28 with 5,480). Rank order is learned better than values (Spearman 0.43 to 0.56), which is what BO needs. The likely ceiling is noise in the xTB energies of these flexible molecules; repeating a few dozen calculations would measure it.
-- **Representations are not paired by molecule order.** `dft_descriptors.csv` lists the molecules in a different row order from the ChemBERTa-2 and Mordred files, so the same seed draws different molecules on descriptors. Random-search histories on ChemBERTa-2 and Mordred are identical (SMILES and energies, 20/20 seeds) because those two files share row order; they differ from the descriptor histories (0/20 seeds). Comparisons across representations are therefore not paired by molecule.
-- **Top 1% is relative to the pool.** The threshold (about −20) is the 1st percentile of each seed's pool, rebuilt in `scripts/analyze_results.py` with the same two `train_test_split` calls as `baselines/random_search.py` and checked against `best_pool_min` in all 420 histories. Iteration counts are censored at 100.
-- **Benchmark subset, not the full library.** The 6,850 molecules are a subset of a larger candidate library, taken for benchmarking; every energy in it is precomputed, so every run can be replayed from the cache. "Optimum" always means the best molecule of this set, and the results show how methods behave on this set; they do not establish the best molecule of the full library.
-- **Single target, single kernel.** All runs use the 6,850-molecule xTB target in `dft_G.json` with Matern + EI; the separate `xtb_G.json` set is not analysed.
+To check whether the low surrogate accuracy is a limit of the data or of the models, eight model families were tuned and compared under one protocol.
 
-| Representation | Model | Hold-out RMSE | Hold-out R² |
+- **Protocol:**
+  - 5 outer folds shared by every model.
+  - Tuning with Optuna on inner splits of each training part only.
+  - Every preprocessing step fitted on training rows only.
+- **Model families:** a constant baseline, Ridge, Random Forest, XGBoost, the BO loop's own GP, the tabular foundation models TabPFN-3 and TabICLv2, and the Chemprop graph network.
+- **Code:** [`ml_models/benchmark/`](ml_models/benchmark); design in [`docs/specs/2026-10-02-ml-benchmark-design.md`](docs/specs/2026-10-02-ml-benchmark-design.md).
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="ml_plots/ml_benchmark-dark.svg">
+    <img src="ml_plots/ml_benchmark.svg" alt="R², Spearman correlation and top-1% recall for each model and representation" width="100%">
+  </picture>
+</p>
+
+*Figure 5. Hold-out R², Spearman ρ and top-1% recall (the share of the lowest-1% molecules that a model places in its lowest 5%). Points are the mean over 5 outer folds; bars are ± sd. Dotted lines: R² = 0 and the 5% chance level for recall. [PDF](ml_plots/ml_benchmark.pdf).*
+
+**Hold-out R², mean ± sd over 5 folds:**
+
+| Model | DFT descriptors | ChemBERTa-2 | Mordred |
 |---|---|---|---|
-| DFT descriptors | Random Forest | 4.12 | 0.269 |
-| DFT descriptors | XGBoost | 4.14 | 0.262 |
-| ChemBERTa-2 | Random Forest | 4.42 | 0.156 |
-| ChemBERTa-2 | XGBoost | 4.48 | 0.132 |
-| Mordred | Random Forest | 4.21 | 0.232 |
-| Mordred | XGBoost | 4.23 | 0.227 |
+| Mean predictor | 0.000 | 0.000 | 0.000 |
+| Ridge | 0.203 ± 0.023 | 0.265 ± 0.021 | 0.290 ± 0.020 |
+| Random Forest | 0.267 ± 0.026 | 0.200 ± 0.016 | 0.275 ± 0.025 |
+| XGBoost | 0.270 ± 0.028 | 0.205 ± 0.016 | 0.281 ± 0.021 |
+| GP (BO surrogate) | 0.251 ± 0.035 | 0.142 ± 0.006 | 0.109 ± 0.007 |
+| TabPFN-3 | 0.317 ± 0.024 | 0.310 ± 0.027 | 0.325 ± 0.024 (default configuration) |
+| TabICLv2 | 0.311 ± 0.019 | 0.299 ± 0.027 | not run (out of memory) |
+
+**Chemprop, on the molecular graph:**
+- SMILES only: **0.280 ± 0.017** (5 folds).
+- SMILES plus the 29 DFT descriptors: **0.383 ± 0.028** (4 of 5 folds).
+
+**What it shows:**
+
+- **The ceiling moved, but only modestly.**
+  - Under the rule fixed before the run (ΔR² ≥ 0.05 over tuned Random Forest, Holm p < 0.05), it moved on ChemBERTa-2 and Mordred.
+  - TabPFN-3 gains +0.110 on ChemBERTa-2 (p = 0.002) and +0.050 on Mordred (p = 0.001).
+  - On DFT descriptors the gain is +0.050, which falls just short of the 0.05 threshold.
+  - In absolute terms the best models still explain only about a third of the variance.
+- **Graph plus physics descriptors is the best combination.**
+  - Chemprop on SMILES alone is no better than tuned trees.
+  - Adding the 29 DFT descriptors lifts it to R² 0.38 and top-1% recall 0.61.
+- **More data still helps a little.** TabPFN-3's R² rises from 0.21 to 0.32 (DFT descriptors) as its training set grows from 548 to 5,480 molecules, while its top-1% recall stays flat at about 0.6.
+- **Representation matters for the tail, not the bulk.**
+  - The best model's R² hardly changes between representations (TabPFN-3: 0.31–0.33, differences not significant).
+  - Its ability to rank the very best molecules does change, and that tracks BO:
+
+| Representation | Best model, top-1% recall | GP, top-1% recall | Outlier score, top-1% recall | Best BO method, regret AUC |
+|---|---|---|---|---|
+| DFT descriptors | 0.60 (TabPFN-3) | 0.46 | 0.44 | **0.10** |
+| ChemBERTa-2 | 0.33 (TabPFN-3) | 0.23 | 0.07 | 0.71 |
+| Mordred | 0.34 (Ridge) | 0.24 | 0.11 | 0.67 |
+
+- **The extremeness signal belongs to the DFT descriptors.** The model-free outlier score ranks the top 1% almost as well as the GP on DFT descriptors (0.44 vs 0.46), and barely above chance elsewhere. That is the mechanism behind the BO headline.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="ml_plots/ml_parity-dark.svg">
-    <img src="ml_plots/ml_parity.svg" alt="Predicted versus true energy on the hold-out set for Random Forest and XGBoost on each representation" width="85%">
+    <img src="ml_plots/ml_parity.svg" alt="Out-of-fold predicted versus true energy for the best model on each representation" width="85%">
   </picture>
 </p>
 
-*Hold-out set, n = 1,370 per panel. [PDF](ml_plots/ml_parity.pdf).*
+*Figure 6. Out-of-fold predictions of the best model per representation. All models compress the low-energy tail towards the mean. [PDF](ml_plots/ml_parity.pdf).*
+
+TabPFN-3 weights are released under a non-commercial licence; its prediction files in `ml_results/benchmark/tabpfn/` carry a notice to that effect.
+
+## Conclusions and next steps
+
+- **On this benchmark set, the representation decides whether BO works, and the surrogate's R² does not.**
+  - With DFT descriptors, OPLS-guided BO finds the best molecule after a median of 26 evaluations in total (10 initial + 16), 0.4% of the 6,155-molecule pool.
+  - With learned or generic representations it rarely finds it within 110.
+- **Hand-built physics descriptors carry the signal that matters.** Combined with the molecular graph they also give the best energy predictor.
+- **Next steps:**
+  - Measure the xTB noise with repeated calculations, to know the true accuracy ceiling.
+  - Check the collinear descriptor columns at the export step.
+  - Tune Chemprop on a GPU, and try it as the BO surrogate.
+  - Repeat the study on DFT-level energies.
+
+## Limitations
+
+- **Collinear descriptor columns.** The NMR, `f+`, `f-` and `fdual` columns of `dft_descriptors.csv` are almost perfectly collinear (|r| > 0.9999), probably an export error. The data are unchanged. The outlier score on descriptors can be dominated by these columns (the optimum's 5.7σ is on `f+`).
+- **Vanilla GP on Mordred is pruned.** To make a plain GP tractable on the 1,469 Mordred columns, those runs use `--prune-correlated 0.95`, which keeps 523 of 1,469 columns. Vanilla results on Mordred are therefore not a plain full-feature baseline.
+- **The energies are hard to learn.**
+  - Even the best tuned model reaches only R² ≈ 0.32–0.38 (see the surrogate benchmark).
+  - [`scripts/diagnose_ml_r2.py`](scripts/diagnose_ml_r2.py) rules out a data bug: a shuffled-target control gives R² of −0.05 to −0.07, so features and energies are aligned.
+  - The likely ceiling is noise in the xTB energies of these flexible molecules. The data contain no repeated calculations, so it cannot be measured here.
+- **Chemprop was barely tuned.** One Chemprop trial takes over an hour on a CPU runner, so each fold finished only 2–4 of the planned 20 trials. Its R² of 0.38 is therefore a lower bound for a tuned graph network.
+- **Some benchmark cells are reduced or missing.** See [`ml_models/benchmark/BUDGET.md`](ml_models/benchmark/BUDGET.md).
+  - TabPFN-3 on Mordred ran its default configuration only.
+  - TabICLv2 on Mordred was not run, because it runs out of memory on a 16 GB runner.
+  - Chemprop on SMILES plus DFT descriptors has 4 of 5 folds, so it is left out of the significance tests.
+- **Representations are not paired by molecule order.** `dft_descriptors.csv` lists the molecules in a different row order from the ChemBERTa-2 and Mordred files, so the same seed draws different molecules on descriptors. Random-search histories on ChemBERTa-2 and Mordred are identical (SMILES and energies, 20/20 seeds) because those two files share row order; they differ from the descriptor histories (0/20 seeds). Comparisons across representations are therefore not paired by molecule.
+- **Top 1% is relative to the pool.** The threshold (about −20) is the 1st percentile of each seed's pool, rebuilt in `scripts/analyze_results.py` with the same two `train_test_split` calls as `baselines/random_search.py` and checked against `best_pool_min` in all 420 histories. Iteration counts are censored at 100.
+- **Benchmark subset, not the full library.** The 6,850 molecules are a subset of a larger candidate library, taken for benchmarking; every energy in it is precomputed, so every run can be replayed from the cache. "Optimum" always means the best molecule of this set, and the results show how methods behave on this set; they do not establish the best molecule of the full library.
+- **Single target, single kernel.** All runs use the 6,850-molecule xTB target in `dft_G.json` with Matern + EI; the separate `xtb_G.json` set is not analysed.
 
 ## Reproduction
 
 ### Install
 
 ```bash
-git clone https://github.com/0rkhann/BO_project.git
-cd BO_project
+git clone https://github.com/0rkhann/nhc-bo-benchmark.git
+cd nhc-bo-benchmark
 git lfs pull                      # feature CSVs are stored with Git LFS
 python -m venv .bo_project_env
 source .bo_project_env/bin/activate
@@ -214,15 +301,25 @@ python -m src.cli --mode "$METHOD" \
 
 ### The full experiment grid
 
-The **Rerun experiments** GitHub Actions workflow (`.github/workflows/rerun-experiments.yml`, manual `workflow_dispatch`) runs the whole matrix and commits the histories to a new branch. Defaults: all three datasets, `fabo pca pls opls vanilla random outlier`, seeds 42 to 61, 100 iterations, `results/` replaced. The workflow does the vanilla Mordred pruning for you. The 420 histories in `results/` come from run [36920300898](https://github.com/0rkhann/BO_project/actions/runs/36920300898).
+The **Rerun experiments** GitHub Actions workflow (`.github/workflows/rerun-experiments.yml`, manual `workflow_dispatch`) runs the whole matrix and commits the histories to a new branch. Defaults: all three datasets, `fabo pca pls opls vanilla random outlier`, seeds 42 to 61, 100 iterations, `results/` replaced. The workflow does the vanilla Mordred pruning for you. The 420 histories in `results/` come from run [36920300898](https://github.com/0rkhann/nhc-bo-benchmark/actions/runs/36920300898).
 
-`run_all_dft_experiments.sh` (local) and `submit_all_experiments.sh` (SLURM array job) are older drivers; the local one covers FABO, PLS, PCA and OPLS with seeds 42 to 46 only. `train_all_ml_models.sh` trains the Random Forest and XGBoost baselines.
+`run_all_dft_experiments.sh` (local) and `submit_all_experiments.sh` (SLURM array job) are older drivers; the local one covers FABO, PLS, PCA and OPLS with seeds 42 to 46 only.
+
+### The surrogate benchmark
+
+```bash
+pip install -r requirements-ml.lock        # Python 3.11; pinned Chemprop, TabPFN, TabICL, Optuna, BoTorch
+python -m ml_models.benchmark.run --model rf --rep dft_descriptors --fold 0   # one cell
+python -m ml_models.benchmark.summarize    # summary.csv, comparisons.csv, story_links.csv
+```
+
+The **ML benchmark** workflow (`.github/workflows/ml-benchmark.yml`, manual) runs the whole matrix on GitHub Actions. It has a `timing` mode, and a merge mode for rerunning selected cells. Per-cell results, best parameters, trial logs and provenance (data hashes, package versions, git SHA) are in `ml_results/benchmark/`.
 
 ### Numbers, figures and tests
 
 ```bash
 python scripts/analyze_results.py      # analysis/*.csv, tables, paired tests (prints Markdown)
-python plotting/make_figures.py        # plots/*.svg|pdf and ml_plots/ml_parity.svg|pdf
+python plotting/make_figures.py        # plots/ and ml_plots/ (SVG light and dark, PDF)
 python scripts/summarize_results.py    # earlier mean ± sd summary
 pytest                                 # tests
 ```
@@ -241,14 +338,15 @@ pytest                                 # tests
 │   ├── acquisition.py           # acquisition functions
 │   ├── feature_selection/       # FABO, PCA, PLS, OPLS, vanilla
 │   └── pipelines/               # one BO pipeline per method
-├── ml_models/                   # RF / XGBoost training
+├── ml_models/benchmark/         # surrogate benchmark: data, adapters, tuner, runner, summariser, budget
 ├── plotting/make_figures.py     # all README figures
-├── scripts/                     # analyze_results.py, summarize_results.py, diagnose_ml_r2.py, holdout metrics, cache helpers
+├── scripts/                     # analyze_results.py, summarize_results.py, diagnose_ml_r2.py, cache helpers
 ├── results/                     # BO and control histories (CSV), 420 runs
-├── ml_results/                  # supervised baseline predictions
+├── ml_results/benchmark/        # per-cell metrics, predictions, trial logs, summary tables
 ├── plots/, ml_plots/            # figures (SVG for the README, PDF for slides)
 ├── tests/                       # pytest suite
-└── .github/workflows/           # Rerun experiments workflow
+├── docs/                        # design spec and implementation plan of the benchmark
+└── .github/workflows/           # pytest, Rerun experiments, ML benchmark
 ```
 
 ## Credit and citation
@@ -258,7 +356,7 @@ This repository is the work of **Orkhan Abdullayev** at the [Pollice Research Gr
 ```
 Abdullayev, O. Bayesian Optimization for Molecular Property Optimization.
 Pollice Research Group, University of Groningen.
-GitHub repository: https://github.com/0rkhann/BO_project
+GitHub repository: https://github.com/0rkhann/nhc-bo-benchmark
 ```
 
 Built on [BoTorch](https://botorch.org/), [GPyTorch](https://gpytorch.ai/), PyTorch and scikit-learn. Released under the [MIT License](LICENSE).
