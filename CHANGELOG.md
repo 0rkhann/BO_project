@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.0.1
 
 ### Added
 - Expected result for the unfinished Chemprop SMILES+DFT-descriptor fold 2 ([`scripts/project_chemprop_fold2.py`](scripts/project_chemprop_fold2.py)). The README reports it as a projection: a 5-fold R² of 0.388 (range 0.384–0.391) and a top-1% recall of 0.60.
