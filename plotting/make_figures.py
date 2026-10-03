@@ -295,11 +295,11 @@ def fig_parity():
         ax.plot(lim, lim, color=INK, lw=1, ls="--")
         ax.set_xlim(lim)
         ax.set_ylim(lim)
-        ax.text(0.04, 0.95, f"{ML_LABEL[best.model]}\nR² = {best.r2_mean:.3f} ± {best.r2_sd:.3f}",
+        ax.text(0.04, 0.95, f"{ML_LABEL[best.model]}\nR² = {best.r2_mean:.3f} ± {best.r2_sd:.3f}\nn = {len(y):,} ({best.folds_ok} folds)",
                 transform=ax.transAxes, va="top", fontsize=13)
         ax.set_title(label, loc="left", fontweight="bold")
     for ax in axes[1]:
-        ax.set_xlabel(f"True energy, kJ/mol (out-of-fold, n = {len(y):,})")
+        ax.set_xlabel("True energy, kJ/mol (out-of-fold)")
     for ax in axes[:, 0]:
         ax.set_ylabel("Predicted energy, kJ/mol")
     fig.tight_layout()
