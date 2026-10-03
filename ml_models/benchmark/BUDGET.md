@@ -37,7 +37,7 @@ Chemprop: 244.8 s on SMILES only, and 479.5 s on SMILES plus the 29 DFT descript
 
 ## Refit reserve
 
-`refit_estimate_s` in each adapter is set from these measurements, scaled to 5,480 rows and the largest configuration in its grid: TabPFN-3 1,500 s, TabICL 2,100 s, GP 2,700 s, Chemprop 1,500 s. `run.py` keeps twice this time free for the final refit.
+`refit_estimate_s` in each adapter is set from these measurements, scaled to 5,480 rows and the largest configuration in its grid: TabPFN-3 1,500 s, TabICL 2,100 s, GP 2,700 s, Chemprop 2,700 s (raised from 1,500 s after the fold-2 timeouts), Random Forest 1,200 s, XGBoost 600 s. `run.py` keeps twice this time free for the final refit.
 
 ## Chemprop, SMILES plus DFT descriptors, fold 2
 
