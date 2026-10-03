@@ -1,5 +1,5 @@
 number,value,datetime_start,datetime_complete,duration,params_n_estimators,params_softmax_temperature,system_attrs_grid_id,system_attrs_search_space,state
-0,4.000870688476155,2026-10-02 10:04:56.929900,2026-10-02 11:13:13.134493,0 days 01:08:16.204593,16,0.75,0,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
-1,4.001128316524228,2026-10-02 11:13:13.134573,2026-10-02 12:20:59.909207,0 days 01:07:46.774634,16,0.9,1,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
-2,4.005974448408874,2026-10-02 12:20:59.909273,2026-10-02 12:54:47.809989,0 days 00:33:47.900716,8,0.9,2,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
-3,4.005881407543453,2026-10-02 12:54:47.810057,2026-10-02 13:29:01.124113,0 days 00:34:13.314056,8,0.75,3,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
+0,4.00265696996225,2026-10-02 18:07:49.070327,2026-10-02 18:34:52.869968,0 days 00:27:03.799641,16,0.75,0,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
+1,4.003276233866088,2026-10-02 18:34:52.870118,2026-10-02 19:01:49.198755,0 days 00:26:56.328637,16,0.9,1,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
+2,4.008617995938928,2026-10-02 19:01:49.198882,2026-10-02 19:15:22.812748,0 days 00:13:33.613866,8,0.9,2,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
+3,4.008247495065,2026-10-02 19:15:22.812872,2026-10-02 19:28:40.076148,0 days 00:13:17.263276,8,0.75,3,"{'n_estimators': [8, 16], 'softmax_temperature': [0.75, 0.9]}",COMPLETE
