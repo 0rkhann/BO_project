@@ -38,3 +38,12 @@ Chemprop: 244.8 s on SMILES only, and 479.5 s on SMILES plus the 29 DFT descript
 ## Refit reserve
 
 `refit_estimate_s` in each adapter is set from these measurements, scaled to 5,480 rows and the largest configuration in its grid: TabPFN-3 1,500 s, TabICL 2,100 s, GP 2,700 s, Chemprop 1,500 s. `run.py` keeps twice this time free for the final refit.
+
+## Chemprop, SMILES plus DFT descriptors, fold 2
+
+This fold hit the 350-minute job limit three times:
+- in run 36973305220, before the tuning cap existed;
+- in run 37045057608, with a 50-minute refit reserve;
+- in run 37111375107, with a 90-minute refit reserve.
+
+The other four folds finished. Under the spec's failure rule, the cell is reported with 4 of 5 folds and left out of the significance tests. Each fold completed only 2–4 Chemprop trials, so a GPU run is the way to finish this cell.
