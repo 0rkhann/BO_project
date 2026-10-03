@@ -359,4 +359,6 @@ Pollice Research Group, University of Groningen.
 GitHub repository: https://github.com/0rkhann/nhc-bo-benchmark
 ```
 
+GitHub's **Cite this repository** button (from [`CITATION.cff`](CITATION.cff)) gives the same reference in BibTeX and APA.
+
 Built on [BoTorch](https://botorch.org/), [GPyTorch](https://gpytorch.ai/), PyTorch and scikit-learn. Released under the [MIT License](LICENSE).
